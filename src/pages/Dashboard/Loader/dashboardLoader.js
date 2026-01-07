@@ -2,21 +2,17 @@ import axiosInstance from "@/services/api";
 import { redirect } from "react-router";
 
 export default async function dashboardLoader() {
-  // TODO: Implement /auth/verify endpoint in Laravel backend
-  // For now, just return empty object to allow dashboard access after login
-  return {};
-
-  // Uncomment below when /auth/verify is implemented:
-  /*
   try {
-    // Verify authentication by calling a protected endpoint
-    // The HttpOnly cookie is automatically sent with the request
-    const response = await axiosInstance.get("/auth/verify");
-    return response.data; // Return user data if authenticated
+    // Fetch events from the API
+    const response = await axiosInstance.get("/events");
+    return { events: response.data?.data || [] };
   } catch (error) {
-    // If verification fails, redirect to login
-    console.error("Auth verification failed:", error);
-    return redirect("/");
+    console.error("Failed to fetch events:", error);
+    // If unauthorized, redirect to login
+    if (error.response?.status === 401) {
+      return redirect("/");
+    }
+    // Return empty array on other errors
+    return { events: [] };
   }
-  */
 }
