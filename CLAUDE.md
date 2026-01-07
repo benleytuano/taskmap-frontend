@@ -6,6 +6,56 @@
 - **Routing**: React Router
 - **Styling**: Tailwind CSS
 - **Components**: shadcn/ui
+- **HTTP Client**: Axios
+
+## API Service
+
+### Configuration
+All API calls use a centralized axios instance located at `src/services/api.js`:
+
+```javascript
+import axios from "axios";
+
+const axiosInstance = axios.create({
+  baseURL: import.meta.env.VITE_API_URL,
+  withCredentials: true, // Send HttpOnly cookies with requests
+});
+
+export default axiosInstance;
+```
+
+### Authentication Strategy
+This project uses **HttpOnly cookies** for JWT storage:
+- **Security**: Cookies cannot be accessed via JavaScript, preventing XSS attacks
+- **Automatic**: Browser automatically sends cookies with each request
+- **No Manual Token Handling**: No need to manually add Authorization headers
+
+### Features
+- **Base URL**: Configured via `VITE_API_URL` environment variable
+- **HttpOnly Cookie Support**: `withCredentials: true` ensures cookies are sent with cross-origin requests
+- **CSRF Protection**: Backend should implement CSRF tokens for state-changing operations
+
+### Usage
+Import the axios instance in loaders, actions, or components:
+
+```javascript
+import axiosInstance from "@/services/api";
+
+// In loaders
+const response = await axiosInstance.get("/events");
+
+// In actions
+const response = await axiosInstance.post("/events", data);
+
+// In components
+const response = await axiosInstance.put(`/events/${id}`, data);
+```
+
+### Environment Variables
+The `.env` file is configured with:
+```
+VITE_API_URL=http://localhost:8000/api/v1
+```
 
 ## Code Style Guidelines
 
@@ -130,22 +180,23 @@ The `RootLayout` component renders:
 
 ### 2. Route Loaders for Data Fetching
 Loaders fetch data before rendering components:
-```tsx
+```javascript
 export default async function dashboardLoader() {
-  const token = sessionStorage.getItem("authToken");
-
-  if (!token) {
-    return redirect("/");  // Auth guard
-  }
-
   try {
+    // HttpOnly cookie is automatically sent with request
     const response = await axiosInstance.get("/events");
     return response.data;
   } catch (error) {
     // Handle errors...
+    if (error.response?.status === 401) {
+      return redirect("/");  // Redirect if unauthorized
+    }
+    throw error;
   }
 }
 ```
+
+**Note:** Auth verification happens at the layout level. Individual loaders just fetch data.
 
 Key loader locations:
 - `src/layouts/Loader/rootLayoutLoader.ts` - Auth verification for all dashboard routes
@@ -217,29 +268,45 @@ export default async function eventDetailsLoader({ params }: LoaderFunctionArgs)
 
 ### Route Protection
 Authentication is enforced at the layout level via `rootLayoutLoader`:
-```tsx
-export default function rootLayoutLoader() {
-  const token = sessionStorage.getItem("authToken");
-
-  if (!token) {
-    return redirect("/");  // Redirect to login
+```javascript
+export default async function rootLayoutLoader() {
+  try {
+    // Verify authentication by calling a protected endpoint
+    // The HttpOnly cookie is automatically sent with the request
+    const response = await axiosInstance.get("/auth/verify");
+    return response.data; // Return user data if authenticated
+  } catch (error) {
+    // If verification fails, redirect to login
+    return redirect("/");
   }
-
-  return null;
 }
 ```
 
 This loader runs before any child route, protecting the entire `/dashboard` section.
 
+**Key Points:**
+- No manual token handling - cookies are sent automatically
+- Backend validates the HttpOnly cookie
+- Failed authentication returns 401, triggering redirect
+
 ### Logout Flow
-Logout is handled in the layout:
-```tsx
-const handleLogout = () => {
-  sessionStorage.removeItem("authToken");
-  sessionStorage.removeItem("userData");
-  navigate("/");
+Logout is handled by calling the backend logout endpoint:
+```javascript
+const handleLogout = async () => {
+  try {
+    // Backend clears the HttpOnly cookie
+    await axiosInstance.post("/auth/logout");
+  } catch (error) {
+    console.error("Logout failed:", error);
+  } finally {
+    navigate("/");
+  }
 };
 ```
+
+**Backend Responsibility:**
+- Clear the HttpOnly cookie (set expiry to past date)
+- Return success response
 
 ## Benefits of This Architecture
 
