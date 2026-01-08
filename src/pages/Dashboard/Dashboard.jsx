@@ -1,11 +1,10 @@
 import { useState, useMemo } from "react";
 import { useLoaderData, useNavigate } from "react-router";
-import { Search, Plus, MoreVertical, Users as UsersIcon } from "lucide-react";
+import { Search, Plus } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Pagination,
@@ -16,6 +15,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+import { CreateTaskModal } from "@/components/CreateTaskModal";
 
 const ITEMS_PER_PAGE = 6;
 
@@ -25,24 +25,32 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [activeTab, setActiveTab] = useState("ongoing");
+  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
 
-  // Filter events by status and search query
+  // Filter tasks by completion status and search query
   const filteredEvents = useMemo(() => {
     let filtered = events || [];
 
     // Filter by tab (ongoing/completed)
-    filtered = filtered.filter((event) => {
+    filtered = filtered.filter((task) => {
+      const totalAssignments = task.assignments?.length || 0;
+      const completedAssignments = task.assignments?.filter(
+        a => a.status.value === "completed" || a.status.value === "approved"
+      ).length || 0;
+
+      const isCompleted = totalAssignments > 0 && completedAssignments === totalAssignments;
+
       if (activeTab === "ongoing") {
-        return event.status !== "completed";
+        return !isCompleted;
       } else {
-        return event.status === "completed";
+        return isCompleted;
       }
     });
 
     // Filter by search query
     if (searchQuery.trim()) {
-      filtered = filtered.filter((event) =>
-        event.event_name?.toLowerCase().includes(searchQuery.toLowerCase())
+      filtered = filtered.filter((task) =>
+        task.title?.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
@@ -69,184 +77,215 @@ export default function Dashboard() {
   return (
     <>
       {/* Header Section */}
-      <div className="mb-6">
-        <h2 className="text-3xl font-bold mb-2">Dashboard</h2>
-        <p className="text-muted-foreground">
-          Manage and track your events
-        </p>
+      <div className="mb-6 flex items-start justify-between">
+        <div>
+          <h2 className="text-3xl font-bold mb-2">Dashboard</h2>
+          <p className="text-muted-foreground">
+            Manage and track your tasks
+          </p>
+        </div>
+        <Button onClick={() => setIsTaskModalOpen(true)}>
+          <Plus className="size-4 mr-2" />
+          Create Task
+        </Button>
       </div>
+
+      {/* Task Creation Modal */}
+      <CreateTaskModal
+        open={isTaskModalOpen}
+        onOpenChange={setIsTaskModalOpen}
+      />
 
       {/* Main Content */}
-      <div className="rounded-lg border bg-card">
-        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-          {/* Tabs Header with Search and Create Button */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 sm:p-6 border-b">
-            <TabsList>
-              <TabsTrigger value="ongoing">Ongoing</TabsTrigger>
-              <TabsTrigger value="completed">Completed</TabsTrigger>
-            </TabsList>
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+        {/* Tabs Header with Search */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+          <TabsList>
+            <TabsTrigger value="ongoing">Ongoing</TabsTrigger>
+            <TabsTrigger value="completed">Completed</TabsTrigger>
+          </TabsList>
 
-            <div className="flex flex-col sm:flex-row gap-3 sm:items-center w-full sm:w-auto">
-              <div className="relative flex-1 sm:flex-initial">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 size-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search events..."
-                  value={searchQuery}
-                  onChange={handleSearchChange}
-                  className="pl-9 w-full sm:w-[250px]"
-                />
-              </div>
-              <Button onClick={() => navigate("/dashboard/events/create")} className="w-full sm:w-auto">
-                <Plus className="size-4 mr-2" />
-                Create Event
-              </Button>
-            </div>
+          <div className="relative w-full sm:w-auto">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 size-4 text-muted-foreground" />
+            <Input
+              placeholder="Search tasks..."
+              value={searchQuery}
+              onChange={handleSearchChange}
+              className="pl-9 w-full sm:w-[300px]"
+            />
           </div>
+        </div>
 
-          {/* Ongoing Tab Content */}
-          <TabsContent value="ongoing" className="p-4 sm:p-6 mt-0">
-            {currentEvents.length === 0 ? (
-              <div className="text-center py-12">
-                <p className="text-muted-foreground">
-                  {searchQuery ? "No events found matching your search" : "No ongoing events"}
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {currentEvents.map((event) => (
-                  <EventCard key={event.id} event={event} />
-                ))}
-              </div>
-            )}
+        {/* Ongoing Tab Content */}
+        <TabsContent value="ongoing" className="mt-0">
+          {currentEvents.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">
+                {searchQuery ? "No tasks found matching your search" : "No ongoing tasks"}
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {currentEvents.map((event) => (
+                <TaskCard key={event.id} task={event} />
+              ))}
+            </div>
+          )}
 
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="mt-6">
-                <EventPagination
-                  currentPage={currentPage}
-                  totalPages={totalPages}
-                  onPageChange={setCurrentPage}
-                />
-              </div>
-            )}
-          </TabsContent>
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="mt-6">
+              <EventPagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+              />
+            </div>
+          )}
+        </TabsContent>
 
-          {/* Completed Tab Content */}
-          <TabsContent value="completed" className="p-4 sm:p-6 mt-0">
-            {currentEvents.length === 0 ? (
-              <div className="text-center py-12">
-                <p className="text-muted-foreground">
-                  {searchQuery ? "No events found matching your search" : "No completed events"}
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {currentEvents.map((event) => (
-                  <EventCard key={event.id} event={event} />
-                ))}
-              </div>
-            )}
+        {/* Completed Tab Content */}
+        <TabsContent value="completed" className="mt-0">
+          {currentEvents.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">
+                {searchQuery ? "No tasks found matching your search" : "No completed tasks"}
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {currentEvents.map((event) => (
+                <TaskCard key={event.id} task={event} />
+              ))}
+            </div>
+          )}
 
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="mt-6">
-                <EventPagination
-                  currentPage={currentPage}
-                  totalPages={totalPages}
-                  onPageChange={setCurrentPage}
-                />
-              </div>
-            )}
-          </TabsContent>
-        </Tabs>
-      </div>
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="mt-6">
+              <EventPagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+              />
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
     </>
   );
 }
 
-function EventCard({ event }) {
+function TaskCard({ task }) {
   const navigate = useNavigate();
 
-  // Calculate progress (mock data - adjust based on your actual event structure)
-  const totalAttendees = event.total_attendees || 0;
-  const checkedInAttendees = event.checked_in_attendees || 0;
-  const progressPercentage = totalAttendees > 0
-    ? Math.round((checkedInAttendees / totalAttendees) * 100)
+  // Calculate progress based on assignments
+  const totalAssignments = task.assignments?.length || 0;
+  const completedAssignments = task.assignments?.filter(
+    a => a.status.value === "completed" || a.status.value === "approved"
+  ).length || 0;
+
+  const progressPercentage = totalAssignments > 0
+    ? Math.round((completedAssignments / totalAssignments) * 100)
     : 0;
 
-  // Format date
-  const eventDate = event.event_date
-    ? new Date(event.event_date).toLocaleDateString("en-US", {
+  // Format deadline date
+  const deadline = task.deadline
+    ? new Date(task.deadline).toLocaleDateString("en-US", {
         month: "short",
         day: "numeric",
         year: "numeric",
       })
     : null;
 
-  // Get status badge
-  const getStatusBadge = () => {
-    if (event.status === "completed") {
-      return <Badge variant="secondary">Completed</Badge>;
-    }
-    if (event.status === "in_progress") {
-      return <Badge variant="default">In Progress</Badge>;
-    }
-    return <Badge variant="outline">Upcoming</Badge>;
+  // Check if task is overdue
+  const isOverdue = task.deadline && new Date(task.deadline) < new Date();
+
+  // Get progress bar color
+  const getProgressColor = () => {
+    if (progressPercentage === 100) return "bg-green-500";
+    if (progressPercentage >= 50) return "bg-blue-500";
+    return "bg-blue-500";
   };
+
+  // Get user initials
+  const getInitials = (name) => {
+    if (!name) return "?";
+    const parts = name.split(" ");
+    if (parts.length >= 2) {
+      return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+    }
+    return name.substring(0, 1).toUpperCase();
+  };
+
+  // Get assigned users (from assignments)
+  const assignedUsers = task.assignments?.map(a => a.assignee) || [];
 
   return (
     <div
-      onClick={() => navigate(`/dashboard/events/${event.id}`)}
-      className="group border rounded-lg p-4 hover:bg-accent/50 transition-colors cursor-pointer"
+      onClick={() => navigate(`/dashboard/tasks/${task.id}`)}
+      className="border rounded-lg p-4 hover:bg-accent/50 transition-colors cursor-pointer bg-card"
     >
+      {/* Title and Due Date */}
       <div className="flex items-start justify-between mb-3">
-        <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-base mb-1 truncate">
-            {event.event_name}
+        <div className="flex-1">
+          <h3 className="font-semibold text-base mb-1">
+            {task.title}
           </h3>
-          {eventDate && (
+          {deadline && (
             <p className="text-sm text-muted-foreground">
-              Due: {eventDate}
+              Due: {deadline}
             </p>
           )}
         </div>
-        <div className="flex items-center gap-2 ml-4">
-          {getStatusBadge()}
-          <Button variant="ghost" size="icon" className="size-8" onClick={(e) => e.stopPropagation()}>
-            <MoreVertical className="size-4" />
-          </Button>
+
+        {/* Overdue Badge and User Avatars */}
+        <div className="flex items-center gap-3 ml-4">
+          {isOverdue && (
+            <Badge variant="destructive" className="bg-red-100 text-red-700 hover:bg-red-100">
+              Has Overdue
+            </Badge>
+          )}
+
+          {/* User Avatars */}
+          {assignedUsers.length > 0 && (
+            <div className="flex -space-x-2">
+              {assignedUsers.slice(0, 2).map((user, index) => (
+                <Avatar key={index} className="size-8 border-2 border-background bg-muted">
+                  <AvatarFallback className="text-xs bg-gray-200 text-gray-700">
+                    {getInitials(user.name)}
+                  </AvatarFallback>
+                </Avatar>
+              ))}
+              {assignedUsers.length > 2 && (
+                <Avatar className="size-8 border-2 border-background bg-muted">
+                  <AvatarFallback className="text-xs bg-gray-200 text-gray-700">
+                    +{assignedUsers.length - 2}
+                  </AvatarFallback>
+                </Avatar>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
+      {/* Progress Section */}
       <div className="space-y-2">
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">
-            {checkedInAttendees}/{totalAttendees} attended
+        <div className="flex items-center justify-between">
+          <span className={`text-sm ${progressPercentage === 100 ? 'text-green-600' : 'text-muted-foreground'}`}>
+            {completedAssignments}/{totalAssignments} completed
           </span>
-          <span className="font-medium">{progressPercentage}%</span>
+          <span className="text-sm font-medium">{progressPercentage}%</span>
         </div>
-        <Progress value={progressPercentage} className="h-2" />
-      </div>
 
-      {/* Team Members Avatars (if available) */}
-      {event.organizers && event.organizers.length > 0 && (
-        <div className="flex items-center gap-2 mt-3">
-          <div className="flex -space-x-2">
-            {event.organizers.slice(0, 3).map((organizer, index) => (
-              <Avatar key={index} className="size-6 border-2 border-background">
-                <AvatarFallback className="text-xs">
-                  {organizer.name?.charAt(0).toUpperCase() || "?"}
-                </AvatarFallback>
-              </Avatar>
-            ))}
-            {event.organizers.length > 3 && (
-              <div className="flex items-center justify-center size-6 rounded-full bg-muted border-2 border-background text-xs">
-                +{event.organizers.length - 3}
-              </div>
-            )}
-          </div>
+        {/* Progress Bar */}
+        <div className="w-full bg-gray-200 rounded-full h-2">
+          <div
+            className={`h-2 rounded-full transition-all ${getProgressColor()}`}
+            style={{ width: `${progressPercentage}%` }}
+          />
         </div>
-      )}
+      </div>
     </div>
   );
 }

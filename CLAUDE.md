@@ -3,7 +3,7 @@
 ## Tech Stack
 
 - **Framework**: React
-- **Routing**: React Router
+- **Routing**: React Router v7
 - **Styling**: Tailwind CSS
 - **Components**: shadcn/ui
 - **HTTP Client**: Axios
@@ -134,14 +134,45 @@ createRoot(document.getElementById("root")!).render(
 
 ### Route Definitions
 
-All routes are defined in `src/routes/router.ts` using `createBrowserRouter`:
+All routes are defined in `src/routes/router.js` using `createBrowserRouter`.
 
-```tsx
+**File Structure:**
+```
+src/routes/
+├── router.js          # Main router configuration
+├── loaders/          # Route loaders (one file per page)
+│   ├── rootLayout.js
+│   ├── dashboard.js
+│   └── ...
+└── actions/          # Route actions (one file per page)
+    ├── login.js
+    ├── dashboard.js
+    └── ...
+```
+
+**Router Example:**
+```jsx
+import { createBrowserRouter } from "react-router";
+
+// Pages
+import LoginPage from "@/pages/Login/LoginPage";
+import Dashboard from "@/pages/Dashboard/Dashboard";
+import RootLayout from "@/layouts/RootLayout";
+
+// Loaders
+import rootLayoutLoader from "./loaders/rootLayout";
+import dashboardLoader from "./loaders/dashboard";
+
+// Actions
+import { loginAction } from "./actions/login";
+
 export const router = createBrowserRouter([
   // Public routes
-  { path: "/", Component: Login, action: loginPostAction },
-  { path: "/register", Component: Register },
-  { path: "/attendance/scan", Component: CheckInPage },
+  {
+    path: "/",
+    Component: LoginPage,
+    action: loginAction
+  },
 
   // Protected dashboard routes (nested)
   {
@@ -149,10 +180,23 @@ export const router = createBrowserRouter([
     path: "/dashboard",
     Component: RootLayout,
     loader: rootLayoutLoader,
-    children: [...]
+    children: [
+      {
+        index: true,
+        Component: Dashboard,
+        loader: dashboardLoader
+      },
+      // Add more child routes here
+    ]
   }
 ]);
 ```
+
+**Key Principles:**
+- All loaders go in `src/routes/loaders/` (one file per page)
+- All actions go in `src/routes/actions/` (one file per page)
+- Keep page components in `src/pages/`
+- Import loaders and actions into `router.js` with clear organization
 
 ## Route Structure
 
@@ -166,11 +210,11 @@ export const router = createBrowserRouter([
 
 All dashboard routes are nested under `/dashboard` with a shared layout:
 
-- `/dashboard` - Dashboard home (index route)
-- `/dashboard/all-events` - All events list
-- `/dashboard/events/:eventId` - Event details page
-- `/dashboard/events/:eventId/delete` - Delete event action route
-- `/dashboard/events/:eventId/upload-attendees` - Upload attendees action route
+- `/dashboard` - Dashboard home (index route with task list)
+- `/dashboard/task` - Task management page
+- `/dashboard/tasks/:taskId` - Task details page
+- `/dashboard/tasks/:taskId/delete` - Delete task action route
+- `/dashboard/settings` - Settings page
 
 ## Key Patterns
 
@@ -200,70 +244,96 @@ The `RootLayout` component renders:
 
 ### 2. Route Loaders for Data Fetching
 
-Loaders fetch data before rendering components:
+Loaders fetch data before rendering components. All loaders are located in `src/routes/loaders/` with one file per page.
 
+**Loader Pattern:**
 ```javascript
+// src/routes/loaders/dashboard.js
+import axiosInstance from "@/services/api";
+import { redirect } from "react-router";
+
 export default async function dashboardLoader() {
   try {
     // HttpOnly cookie is automatically sent with request
-    const response = await axiosInstance.get("/events");
-    return response.data;
+    const response = await axiosInstance.get("/tasks");
+    return { tasks: response.data?.data?.tasks || [] };
   } catch (error) {
-    // Handle errors...
+    // Handle errors
     if (error.response?.status === 401) {
       return redirect("/"); // Redirect if unauthorized
     }
-    throw error;
+    return { tasks: [] };
   }
 }
 ```
 
 **Note:** Auth verification happens at the layout level. Individual loaders just fetch data.
 
-Key loader locations:
+**Loader Files:**
+- `src/routes/loaders/rootLayout.js` - Auth verification for all dashboard routes
+- `src/routes/loaders/dashboard.js` - Fetch tasks for dashboard
+- `src/routes/loaders/taskDetails.js` - Fetch single task details
+- One file per page that needs to load data
 
-- `src/layouts/Loader/rootLayoutLoader.ts` - Auth verification for all dashboard routes
-- `src/pages/Dashboard/Loader/dashboardLoader.ts` - Fetch events for dashboard
-- `src/pages/Dashboard/Loader/allEventsLoader.ts` - Fetch all events
-- `src/pages/Dashboard/Loader/eventDetailsLoader.ts` - Fetch single event details
+**References:**
+- [React Router Loader Documentation](https://reactrouter.com/start/data/route-object#loader)
+- [Data Loading Guide](https://reactrouter.com/start/data/data-loading)
 
 ### 3. Route Actions for Form Handling
 
-Actions handle form submissions and mutations:
+Actions handle form submissions and mutations. All actions are located in `src/routes/actions/` with one file per page.
 
-```tsx
-export async function addEventAction({ request }: ActionFunctionArgs) {
+**Action Pattern:**
+```javascript
+// src/routes/actions/login.js
+import axiosInstance from "@/services/api";
+import { redirect } from "react-router";
+
+export async function loginAction({ request }) {
   const formData = await request.formData();
-  const event_name = formData.get("event_name");
+  const email = formData.get("email");
+  const password = formData.get("password");
 
   try {
-    const response = await axiosInstance.post("/events", {
-      event_name,
-      // ...
+    const response = await axiosInstance.post("/auth/login", {
+      email,
+      password,
     });
-    return { success: true, message: "Event created successfully" };
+    return redirect("/dashboard");
   } catch (error) {
-    return { error: "Failed to create event" };
+    if (error.response?.status === 401) {
+      return { error: "Invalid email or password" };
+    }
+    return { error: "An error occurred. Please try again." };
   }
 }
 ```
 
-Action locations:
+**Action Files:**
+- `src/routes/actions/login.js` - Handle login
+- `src/routes/actions/createTask.js` - Create new task
+- `src/routes/actions/updateTask.js` - Update task
+- `src/routes/actions/deleteTask.js` - Delete task
+- One file per page that handles form submissions
 
-- `src/pages/Login/Actions/postAction.ts` - Handle login
-- `src/pages/Dashboard/Actions/addEventAction.ts` - Create new event
-- `src/pages/Dashboard/Actions/updateEventAction.ts` - Update event
-- `src/pages/Dashboard/Actions/deleteEventAction.ts` - Delete event
-- `src/pages/Dashboard/Actions/uploadAttendeesAction.ts` - Upload attendee CSV/Excel
+**References:**
+- [React Router Actions Documentation](https://reactrouter.com/start/data/actions)
 
 ### 4. Action-Only Routes
 
 Some routes exist only to handle actions without rendering a component:
 
-```tsx
-{ path: "events/:eventId/delete", action: deleteEventAction }
-{ path: "events/:eventId/upload-attendees", action: uploadAttendeesAction }
+```javascript
+import { deleteTaskAction } from "./actions/deleteTask";
+
+// In router.js
+{
+  path: "tasks/:taskId/delete",
+  action: deleteTaskAction
+}
 ```
+
+These routes handle POST/DELETE operations and typically redirect after completion.
 
 ### 5. Navigation Hooks
 
@@ -282,20 +352,20 @@ const isActive = (path: string) => location.pathname === path;
 
 ### 6. Route Parameters
 
-Dynamic segments are used for event-specific routes:
+Dynamic segments are used for task-specific routes:
 
-```tsx
-{ path: "events/:eventId", Component: EventDetails }
+```javascript
+{ path: "tasks/:taskId", Component: TaskDetails }
 ```
 
 Parameters are accessed in loaders/actions via `params`:
 
-```tsx
-export default async function eventDetailsLoader({
-  params,
-}: LoaderFunctionArgs) {
-  const eventId = params.eventId;
-  // ...
+```javascript
+// src/routes/loaders/taskDetails.js
+export default async function taskDetailsLoader({ params }) {
+  const taskId = params.taskId;
+  const response = await axiosInstance.get(`/tasks/${taskId}`);
+  return response.data.data.task;
 }
 ```
 
@@ -303,18 +373,25 @@ export default async function eventDetailsLoader({
 
 ### Route Protection
 
-Authentication is enforced at the layout level via `rootLayoutLoader`:
+Authentication is enforced at the layout level via `rootLayoutLoader` located at `src/routes/loaders/rootLayout.js`:
 
 ```javascript
+// src/routes/loaders/rootLayout.js
+import { redirect } from "react-router";
+import axiosInstance from "@/services/api";
+
 export default async function rootLayoutLoader() {
   try {
     // Verify authentication by calling a protected endpoint
     // The HttpOnly cookie is automatically sent with the request
-    const response = await axiosInstance.get("/auth/verify");
-    return response.data; // Return user data if authenticated
+    const response = await axiosInstance.get("/auth/me");
+    return response.data.data.user; // Return user data if authenticated
   } catch (error) {
     // If verification fails, redirect to login
-    return redirect("/");
+    if (error.response?.status === 401) {
+      return redirect("/");
+    }
+    throw error;
   }
 }
 ```
@@ -382,9 +459,48 @@ navigate("/dashboard/all-events");
 
 This project follows React Router v7 best practices with:
 
-- Centralized route configuration
-- Data loaders for prefetching
-- Actions for form submissions
-- Nested routes with shared layouts
-- Authentication guards via loaders
-- Programmatic navigation with hooks
+- **Centralized route configuration** in `src/routes/router.js`
+- **Data loaders** in `src/routes/loaders/` for prefetching (one file per page)
+- **Actions** in `src/routes/actions/` for form submissions (one file per page)
+- **Nested routes** with shared layouts
+- **Authentication guards** via loaders
+- **Programmatic navigation** with hooks
+
+### Complete Router Structure
+
+```
+src/
+├── routes/
+│   ├── router.js              # Main router configuration
+│   ├── loaders/              # Data loading functions
+│   │   ├── rootLayout.js     # Auth verification loader
+│   │   ├── dashboard.js      # Dashboard data loader
+│   │   └── taskDetails.js    # Task details loader
+│   └── actions/              # Form handling functions
+│       ├── login.js          # Login action
+│       ├── createTask.js     # Create task action
+│       ├── updateTask.js     # Update task action
+│       └── deleteTask.js     # Delete task action
+├── pages/                    # Page components
+│   ├── Login/
+│   │   └── LoginPage.jsx
+│   └── Dashboard/
+│       ├── Dashboard.jsx
+│       └── TaskDetails.jsx
+└── layouts/                  # Layout components
+    └── RootLayout.jsx
+```
+
+### Key Principles
+
+1. **Separation of Concerns**: Keep loaders, actions, and components in separate directories
+2. **One File Per Page**: Each page gets its own loader and action file
+3. **Import Organization**: Group imports by type (pages, loaders, actions) in router.js
+4. **Consistent Naming**: Use descriptive names matching the page/route (e.g., `dashboard.js`, `taskDetails.js`)
+5. **Centralized Routing**: All route configuration in one place (`router.js`)
+
+### Documentation References
+
+- [React Router Route Object](https://reactrouter.com/start/data/route-object#loader)
+- [Data Loading](https://reactrouter.com/start/data/data-loading)
+- [Actions](https://reactrouter.com/start/data/actions)

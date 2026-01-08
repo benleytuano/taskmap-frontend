@@ -1,10 +1,17 @@
 import { createBrowserRouter } from "react-router";
+
+// Pages
 import LoginPage from "@/pages/Login/LoginPage";
-import { loginAction } from "@/pages/Login/Actions/loginAction";
 import Dashboard from "@/pages/Dashboard/Dashboard";
-import dashboardLoader from "@/pages/Dashboard/Loader/dashboardLoader";
 import RootLayout from "@/layouts/RootLayout";
-import rootLayoutLoader from "@/layouts/Loader/rootLayoutLoader";
+
+// Loaders
+import rootLayoutLoader from "./loaders/rootLayout";
+import dashboardLoader from "./loaders/dashboard";
+
+// Actions
+import { loginAction } from "./actions/login";
+import { createTaskAction } from "./actions/createTask";
 
 export const router = createBrowserRouter([
   // Public routes
@@ -23,6 +30,7 @@ export const router = createBrowserRouter([
         index: true,
         Component: Dashboard,
         loader: dashboardLoader,
+        action: createTaskAction,
       },
       // Add more dashboard child routes here:
       // { path: "settings", Component: Settings },
