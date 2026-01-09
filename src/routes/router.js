@@ -3,11 +3,13 @@ import { createBrowserRouter } from "react-router";
 // Pages
 import LoginPage from "@/pages/Login/LoginPage";
 import Dashboard from "@/pages/Dashboard/Dashboard";
+import TaskDetails from "@/pages/TaskDetails/TaskDetails";
 import RootLayout from "@/layouts/RootLayout";
 
 // Loaders
 import rootLayoutLoader from "./loaders/rootLayout";
 import dashboardLoader from "./loaders/dashboard";
+import taskDetailsLoader from "./loaders/taskDetails";
 
 // Actions
 import { loginAction } from "./actions/login";
@@ -31,6 +33,11 @@ export const router = createBrowserRouter([
         Component: Dashboard,
         loader: dashboardLoader,
         action: createTaskAction,
+      },
+      {
+        path: "tasks/:taskId",
+        Component: TaskDetails,
+        loader: taskDetailsLoader,
       },
       // Add more dashboard child routes here:
       // { path: "settings", Component: Settings },

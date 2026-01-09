@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/pagination";
 import { CreateTaskModal } from "@/components/CreateTaskModal";
 
-const ITEMS_PER_PAGE = 6;
+const ITEMS_PER_PAGE = 5;
 
 export default function Dashboard() {
   const { events } = useLoaderData();
@@ -77,14 +77,14 @@ export default function Dashboard() {
   return (
     <>
       {/* Header Section */}
-      <div className="mb-6 flex items-start justify-between">
+      <div className="mb-4 flex items-start justify-between">
         <div>
-          <h2 className="text-3xl font-bold mb-2">Dashboard</h2>
-          <p className="text-muted-foreground">
+          <h2 className="text-2xl font-bold mb-1">Dashboard</h2>
+          <p className="text-sm text-muted-foreground">
             Manage and track your tasks
           </p>
         </div>
-        <Button onClick={() => setIsTaskModalOpen(true)}>
+        <Button onClick={() => setIsTaskModalOpen(true)} size="sm">
           <Plus className="size-4 mr-2" />
           Create Task
         </Button>
@@ -99,7 +99,7 @@ export default function Dashboard() {
       {/* Main Content */}
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         {/* Tabs Header with Search */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
           <TabsList>
             <TabsTrigger value="ongoing">Ongoing</TabsTrigger>
             <TabsTrigger value="completed">Completed</TabsTrigger>
@@ -111,7 +111,7 @@ export default function Dashboard() {
               placeholder="Search tasks..."
               value={searchQuery}
               onChange={handleSearchChange}
-              className="pl-9 w-full sm:w-[300px]"
+              className="pl-9 w-full sm:w-[300px] h-9"
             />
           </div>
         </div>
@@ -119,13 +119,13 @@ export default function Dashboard() {
         {/* Ongoing Tab Content */}
         <TabsContent value="ongoing" className="mt-0">
           {currentEvents.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">
+            <div className="text-center py-8">
+              <p className="text-sm text-muted-foreground">
                 {searchQuery ? "No tasks found matching your search" : "No ongoing tasks"}
               </p>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-2">
               {currentEvents.map((event) => (
                 <TaskCard key={event.id} task={event} />
               ))}
@@ -133,8 +133,8 @@ export default function Dashboard() {
           )}
 
           {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="mt-6">
+          {filteredEvents.length > 0 && totalPages > 1 && (
+            <div className="mt-4">
               <EventPagination
                 currentPage={currentPage}
                 totalPages={totalPages}
@@ -147,13 +147,13 @@ export default function Dashboard() {
         {/* Completed Tab Content */}
         <TabsContent value="completed" className="mt-0">
           {currentEvents.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">
+            <div className="text-center py-8">
+              <p className="text-sm text-muted-foreground">
                 {searchQuery ? "No tasks found matching your search" : "No completed tasks"}
               </p>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-2">
               {currentEvents.map((event) => (
                 <TaskCard key={event.id} task={event} />
               ))}
@@ -161,8 +161,8 @@ export default function Dashboard() {
           )}
 
           {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="mt-6">
+          {filteredEvents.length > 0 && totalPages > 1 && (
+            <div className="mt-4">
               <EventPagination
                 currentPage={currentPage}
                 totalPages={totalPages}
@@ -224,26 +224,26 @@ function TaskCard({ task }) {
   return (
     <div
       onClick={() => navigate(`/dashboard/tasks/${task.id}`)}
-      className="border rounded-lg p-4 hover:bg-accent/50 transition-colors cursor-pointer bg-card"
+      className="border rounded-lg p-3 hover:bg-accent/50 transition-colors cursor-pointer bg-card"
     >
       {/* Title and Due Date */}
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex-1">
-          <h3 className="font-semibold text-base mb-1">
+      <div className="flex items-start justify-between mb-2">
+        <div className="flex-1 min-w-0">
+          <h3 className="font-semibold text-sm mb-0.5 truncate">
             {task.title}
           </h3>
           {deadline && (
-            <p className="text-sm text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               Due: {deadline}
             </p>
           )}
         </div>
 
         {/* Overdue Badge and User Avatars */}
-        <div className="flex items-center gap-3 ml-4">
+        <div className="flex items-center gap-2 ml-3 flex-shrink-0">
           {isOverdue && (
-            <Badge variant="destructive" className="bg-red-100 text-red-700 hover:bg-red-100">
-              Has Overdue
+            <Badge variant="destructive" className="bg-red-100 text-red-700 hover:bg-red-100 text-xs px-2 py-0">
+              Overdue
             </Badge>
           )}
 
@@ -251,15 +251,15 @@ function TaskCard({ task }) {
           {assignedUsers.length > 0 && (
             <div className="flex -space-x-2">
               {assignedUsers.slice(0, 2).map((user, index) => (
-                <Avatar key={index} className="size-8 border-2 border-background bg-muted">
-                  <AvatarFallback className="text-xs bg-gray-200 text-gray-700">
+                <Avatar key={index} className="size-6 border-2 border-background bg-muted">
+                  <AvatarFallback className="text-[10px] bg-gray-200 text-gray-700">
                     {getInitials(user.name)}
                   </AvatarFallback>
                 </Avatar>
               ))}
               {assignedUsers.length > 2 && (
-                <Avatar className="size-8 border-2 border-background bg-muted">
-                  <AvatarFallback className="text-xs bg-gray-200 text-gray-700">
+                <Avatar className="size-6 border-2 border-background bg-muted">
+                  <AvatarFallback className="text-[10px] bg-gray-200 text-gray-700">
                     +{assignedUsers.length - 2}
                   </AvatarFallback>
                 </Avatar>
@@ -270,18 +270,18 @@ function TaskCard({ task }) {
       </div>
 
       {/* Progress Section */}
-      <div className="space-y-2">
+      <div className="space-y-1.5">
         <div className="flex items-center justify-between">
-          <span className={`text-sm ${progressPercentage === 100 ? 'text-green-600' : 'text-muted-foreground'}`}>
+          <span className={`text-xs ${progressPercentage === 100 ? 'text-green-600' : 'text-muted-foreground'}`}>
             {completedAssignments}/{totalAssignments} completed
           </span>
-          <span className="text-sm font-medium">{progressPercentage}%</span>
+          <span className="text-xs font-medium">{progressPercentage}%</span>
         </div>
 
         {/* Progress Bar */}
-        <div className="w-full bg-gray-200 rounded-full h-2">
+        <div className="w-full bg-gray-200 rounded-full h-1.5">
           <div
-            className={`h-2 rounded-full transition-all ${getProgressColor()}`}
+            className={`h-1.5 rounded-full transition-all ${getProgressColor()}`}
             style={{ width: `${progressPercentage}%` }}
           />
         </div>
@@ -323,26 +323,26 @@ function EventPagination({ currentPage, totalPages, onPageChange }) {
   };
 
   return (
-    <Pagination>
-      <PaginationContent>
+    <Pagination className="mt-0">
+      <PaginationContent className="gap-1">
         <PaginationItem>
           <PaginationPrevious
             onClick={() => onPageChange(Math.max(1, currentPage - 1))}
-            className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+            className={`h-8 px-2 text-xs ${currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}`}
           />
         </PaginationItem>
 
         {getPageNumbers().map((page, index) =>
           page === "ellipsis" ? (
             <PaginationItem key={`ellipsis-${index}`}>
-              <PaginationEllipsis />
+              <PaginationEllipsis className="h-8 w-8" />
             </PaginationItem>
           ) : (
             <PaginationItem key={page}>
               <PaginationLink
                 onClick={() => onPageChange(page)}
                 isActive={currentPage === page}
-                className="cursor-pointer"
+                className="cursor-pointer h-8 w-8 text-xs p-0"
               >
                 {page}
               </PaginationLink>
@@ -353,7 +353,7 @@ function EventPagination({ currentPage, totalPages, onPageChange }) {
         <PaginationItem>
           <PaginationNext
             onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
-            className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+            className={`h-8 px-2 text-xs ${currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}`}
           />
         </PaginationItem>
       </PaginationContent>
