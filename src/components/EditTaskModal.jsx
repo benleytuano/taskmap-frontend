@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useSubmit, useActionData, useNavigation } from "react-router";
+import { useSubmit, useNavigation } from "react-router";
 import { X, Upload, FileIcon, Search } from "lucide-react";
 import {
   Dialog,
@@ -23,9 +23,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import axiosInstance from "@/services/api";
 
-export function CreateTaskModal({ open, onOpenChange }) {
+export function EditTaskModal({ open, onOpenChange, task }) {
   const submit = useSubmit();
-  const actionData = useActionData();
   const navigation = useNavigation();
 
   const [users, setUsers] = useState([]);
@@ -37,37 +36,42 @@ export function CreateTaskModal({ open, onOpenChange }) {
     deadline: "",
     priority: "",
     assigned_to: [],
+    watchers: [],
   });
 
-  const [attachments, setAttachments] = useState([]);
+  const [newAttachments, setNewAttachments] = useState([]);
+  const [existingAttachments, setExistingAttachments] = useState([]);
+  const [removeAttachmentIds, setRemoveAttachmentIds] = useState([]);
   const [assigneeSearch, setAssigneeSearch] = useState("");
+  const [watcherSearch, setWatcherSearch] = useState("");
 
   const isSubmitting = navigation.state === "submitting";
 
-  // Fetch users when modal opens
+  // Initialize form with task data when modal opens
   useEffect(() => {
-    if (open) {
+    if (open && task) {
       fetchUsers();
-      // Reset form when modal opens
+      // Format deadline for input[type="date"]
+      const deadlineDate = task.deadline
+        ? new Date(task.deadline).toISOString().split("T")[0]
+        : "";
+
       setFormData({
-        title: "",
-        description: "",
-        deadline: "",
-        priority: "",
-        assigned_to: [],
+        title: task.title || "",
+        description: task.description || "",
+        deadline: deadlineDate,
+        priority: task.priority?.value || "",
+        assigned_to: task.assignments?.map((a) => a.assignee.id) || [],
+        watchers: task.watchers?.map((w) => w.user.id) || [],
       });
-      setAttachments([]);
+      setExistingAttachments(task.attachments || []);
+      setNewAttachments([]);
+      setRemoveAttachmentIds([]);
       setAssigneeSearch("");
+      setWatcherSearch("");
       setErrors({});
     }
-  }, [open]);
-
-  // Handle action response - only validation errors (success handled by Dashboard)
-  useEffect(() => {
-    if (actionData && !actionData.success && actionData.errors) {
-      setErrors(actionData.errors);
-    }
-  }, [actionData]);
+  }, [open, task]);
 
   const fetchUsers = async () => {
     try {
@@ -80,7 +84,6 @@ export function CreateTaskModal({ open, onOpenChange }) {
 
   const handleInputChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
-    // Clear error for this field
     if (errors[field]) {
       setErrors((prev) => {
         const newErrors = { ...prev };
@@ -103,7 +106,6 @@ export function CreateTaskModal({ open, onOpenChange }) {
       };
     });
 
-    // Clear error for this field
     if (errors[field]) {
       setErrors((prev) => {
         const newErrors = { ...prev };
@@ -115,9 +117,13 @@ export function CreateTaskModal({ open, onOpenChange }) {
 
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files);
+    const totalFiles =
+      existingAttachments.length -
+      removeAttachmentIds.length +
+      newAttachments.length +
+      files.length;
 
-    // Validate file count
-    if (attachments.length + files.length > 5) {
+    if (totalFiles > 5) {
       setErrors((prev) => ({
         ...prev,
         attachments: ["Maximum 5 files allowed"],
@@ -125,7 +131,6 @@ export function CreateTaskModal({ open, onOpenChange }) {
       return;
     }
 
-    // Validate file size (10MB = 10485760 bytes)
     const invalidFiles = files.filter((file) => file.size > 10485760);
     if (invalidFiles.length > 0) {
       setErrors((prev) => ({
@@ -135,7 +140,7 @@ export function CreateTaskModal({ open, onOpenChange }) {
       return;
     }
 
-    setAttachments((prev) => [...prev, ...files]);
+    setNewAttachments((prev) => [...prev, ...files]);
     setErrors((prev) => {
       const newErrors = { ...prev };
       delete newErrors.attachments;
@@ -143,8 +148,16 @@ export function CreateTaskModal({ open, onOpenChange }) {
     });
   };
 
-  const removeFile = (index) => {
-    setAttachments((prev) => prev.filter((_, i) => i !== index));
+  const removeNewFile = (index) => {
+    setNewAttachments((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const removeExistingFile = (attachmentId) => {
+    setRemoveAttachmentIds((prev) => [...prev, attachmentId]);
+  };
+
+  const restoreExistingFile = (attachmentId) => {
+    setRemoveAttachmentIds((prev) => prev.filter((id) => id !== attachmentId));
   };
 
   const formatFileSize = (bytes) => {
@@ -164,13 +177,6 @@ export function CreateTaskModal({ open, onOpenChange }) {
 
     if (!formData.deadline) {
       newErrors.deadline = ["Deadline is required"];
-    } else {
-      const selectedDate = new Date(formData.deadline);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      if (selectedDate <= today) {
-        newErrors.deadline = ["Deadline must be a future date"];
-      }
     }
 
     if (!formData.priority) {
@@ -192,25 +198,29 @@ export function CreateTaskModal({ open, onOpenChange }) {
       return;
     }
 
-    // Create FormData for multipart/form-data submission
     const data = new FormData();
-
+    data.append("intent", "update-task");
     data.append("title", formData.title);
     data.append("description", formData.description);
     data.append("deadline", formData.deadline);
     data.append("priority", formData.priority);
 
-    // Append assigned users
     formData.assigned_to.forEach((userId) => {
       data.append("assigned_to[]", userId);
     });
 
-    // Append files
-    attachments.forEach((file) => {
+    formData.watchers.forEach((userId) => {
+      data.append("watchers[]", userId);
+    });
+
+    newAttachments.forEach((file) => {
       data.append("attachments[]", file);
     });
 
-    // Submit using React Router's submit function
+    removeAttachmentIds.forEach((id) => {
+      data.append("remove_attachments[]", id);
+    });
+
     submit(data, {
       method: "post",
       encType: "multipart/form-data",
@@ -223,13 +233,24 @@ export function CreateTaskModal({ open, onOpenChange }) {
       .map((user) => user.name);
   };
 
-  // Filter users based on search query
-  const filteredUsers = users.filter(
+  const filteredAssigneeUsers = users.filter(
     (user) =>
       user.name.toLowerCase().includes(assigneeSearch.toLowerCase()) ||
       user.email.toLowerCase().includes(assigneeSearch.toLowerCase()) ||
       user.employee_id.toLowerCase().includes(assigneeSearch.toLowerCase())
   );
+
+  const filteredWatcherUsers = users.filter(
+    (user) =>
+      user.name.toLowerCase().includes(watcherSearch.toLowerCase()) ||
+      user.email.toLowerCase().includes(watcherSearch.toLowerCase()) ||
+      user.employee_id.toLowerCase().includes(watcherSearch.toLowerCase())
+  );
+
+  const activeExistingAttachments = existingAttachments.filter(
+    (att) => !removeAttachmentIds.includes(att.id)
+  );
+  const totalAttachments = activeExistingAttachments.length + newAttachments.length;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -238,14 +259,13 @@ export function CreateTaskModal({ open, onOpenChange }) {
         onInteractOutside={(e) => e.preventDefault()}
       >
         <DialogHeader>
-          <DialogTitle>Create New Task</DialogTitle>
+          <DialogTitle>Edit Task</DialogTitle>
           <DialogDescription>
-            Fill in the details below to create a new task
+            Update the task details below
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* General Error */}
           {errors.general && (
             <div className="bg-red-50 text-red-800 p-3 rounded-md text-sm">
               {errors.general[0]}
@@ -284,7 +304,6 @@ export function CreateTaskModal({ open, onOpenChange }) {
 
           {/* Deadline and Priority */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Deadline */}
             <div className="space-y-2">
               <Label htmlFor="deadline">
                 Deadline <span className="text-red-500">*</span>
@@ -294,14 +313,12 @@ export function CreateTaskModal({ open, onOpenChange }) {
                 type="date"
                 value={formData.deadline}
                 onChange={(e) => handleInputChange("deadline", e.target.value)}
-                min={new Date().toISOString().split("T")[0]}
               />
               {errors.deadline && (
                 <p className="text-sm text-red-500">{errors.deadline[0]}</p>
               )}
             </div>
 
-            {/* Priority */}
             <div className="space-y-2">
               <Label htmlFor="priority">
                 Priority <span className="text-red-500">*</span>
@@ -331,7 +348,6 @@ export function CreateTaskModal({ open, onOpenChange }) {
               Assign To <span className="text-red-500">*</span>
             </Label>
             <div className="space-y-2">
-              {/* Search Input */}
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 size-4 text-muted-foreground" />
                 <Input
@@ -342,19 +358,14 @@ export function CreateTaskModal({ open, onOpenChange }) {
                 />
               </div>
 
-              {/* User List */}
               <div className="border rounded-md p-3 max-h-48 overflow-y-auto">
                 {users.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    Loading users...
-                  </p>
-                ) : filteredUsers.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    No users found
-                  </p>
+                  <p className="text-sm text-muted-foreground">Loading users...</p>
+                ) : filteredAssigneeUsers.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No users found</p>
                 ) : (
                   <div className="space-y-2">
-                    {filteredUsers.map((user) => (
+                    {filteredAssigneeUsers.map((user) => (
                       <label
                         key={user.id}
                         className="flex items-center space-x-2 cursor-pointer hover:bg-muted p-2 rounded"
@@ -368,7 +379,7 @@ export function CreateTaskModal({ open, onOpenChange }) {
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium">{user.name}</p>
                           <p className="text-xs text-muted-foreground truncate">
-                            {user.email} • {user.employee_id}
+                            {user.email} - {user.employee_id}
                           </p>
                         </div>
                         <Badge variant="outline" className="text-xs">
@@ -380,16 +391,13 @@ export function CreateTaskModal({ open, onOpenChange }) {
                 )}
               </div>
 
-              {/* Selected Users */}
               {formData.assigned_to.length > 0 && (
                 <div className="flex flex-wrap gap-1">
-                  {getSelectedUserNames(formData.assigned_to).map(
-                    (name, idx) => (
-                      <Badge key={idx} variant="secondary">
-                        {name}
-                      </Badge>
-                    )
-                  )}
+                  {getSelectedUserNames(formData.assigned_to).map((name, idx) => (
+                    <Badge key={idx} variant="secondary">
+                      {name}
+                    </Badge>
+                  ))}
                 </div>
               )}
             </div>
@@ -398,9 +406,70 @@ export function CreateTaskModal({ open, onOpenChange }) {
             )}
           </div>
 
+          {/* Watchers */}
+          <div className="space-y-2">
+            <Label>Watchers (Optional)</Label>
+            <div className="space-y-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 size-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by name, email, or ID..."
+                  value={watcherSearch}
+                  onChange={(e) => setWatcherSearch(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+
+              <div className="border rounded-md p-3 max-h-48 overflow-y-auto">
+                {users.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Loading users...</p>
+                ) : filteredWatcherUsers.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No users found</p>
+                ) : (
+                  <div className="space-y-2">
+                    {filteredWatcherUsers.map((user) => (
+                      <label
+                        key={user.id}
+                        className="flex items-center space-x-2 cursor-pointer hover:bg-muted p-2 rounded"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={formData.watchers.includes(user.id)}
+                          onChange={() => toggleUser(user.id, "watchers")}
+                          className="rounded border-gray-300"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium">{user.name}</p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {user.email} - {user.employee_id}
+                          </p>
+                        </div>
+                        <Badge variant="outline" className="text-xs">
+                          {user.role.label}
+                        </Badge>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {formData.watchers.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {getSelectedUserNames(formData.watchers).map((name, idx) => (
+                    <Badge key={idx} variant="secondary">
+                      {name}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* File Attachments */}
           <div className="space-y-2">
-            <Label htmlFor="attachments">Attachments (Optional)</Label>
+            <Label htmlFor="attachments">
+              Attachments ({totalAttachments}/5)
+            </Label>
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <Input
@@ -415,22 +484,82 @@ export function CreateTaskModal({ open, onOpenChange }) {
                   type="button"
                   variant="outline"
                   onClick={() => document.getElementById("attachments").click()}
-                  disabled={attachments.length >= 5}
+                  disabled={totalAttachments >= 5}
                 >
                   <Upload className="w-4 h-4 mr-2" />
-                  Choose Files
+                  Add Files
                 </Button>
                 <span className="text-sm text-muted-foreground">
                   Max 5 files, 10MB each
                 </span>
               </div>
 
-              {attachments.length > 0 && (
+              {/* Existing Attachments */}
+              {existingAttachments.length > 0 && (
                 <div className="space-y-2">
-                  {attachments.map((file, index) => (
+                  <p className="text-xs font-medium text-muted-foreground">
+                    Current Attachments:
+                  </p>
+                  {existingAttachments.map((file) => {
+                    const isRemoved = removeAttachmentIds.includes(file.id);
+                    return (
+                      <div
+                        key={file.id}
+                        className={`flex items-center justify-between p-2 border rounded-md ${
+                          isRemoved ? "opacity-50 bg-red-50" : ""
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <FileIcon className="w-4 h-4" />
+                          <div>
+                            <p
+                              className={`text-sm font-medium ${
+                                isRemoved ? "line-through" : ""
+                              }`}
+                            >
+                              {file.original_filename || file.filename}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {file.file_size_formatted || formatFileSize(file.file_size)}
+                            </p>
+                          </div>
+                        </div>
+                        {isRemoved ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => restoreExistingFile(file.id)}
+                          >
+                            Restore
+                          </Button>
+                        ) : (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeExistingFile(file.id)}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* New Attachments */}
+              {newAttachments.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground">
+                    New Attachments:
+                  </p>
+                  {newAttachments.map((file, index) => (
                     <div
                       key={index}
-                      className="flex items-center justify-between p-2 border rounded-md"
+                      className="flex items-center justify-between p-2 border rounded-md bg-green-50"
                     >
                       <div className="flex items-center gap-2">
                         <FileIcon className="w-4 h-4" />
@@ -445,7 +574,7 @@ export function CreateTaskModal({ open, onOpenChange }) {
                         type="button"
                         variant="ghost"
                         size="sm"
-                        onClick={() => removeFile(index)}
+                        onClick={() => removeNewFile(index)}
                       >
                         <X className="w-4 h-4" />
                       </Button>
@@ -470,7 +599,7 @@ export function CreateTaskModal({ open, onOpenChange }) {
               Cancel
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Creating..." : "Create Task"}
+              {isSubmitting ? "Saving..." : "Save Changes"}
             </Button>
           </DialogFooter>
         </form>

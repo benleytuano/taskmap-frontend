@@ -3,6 +3,14 @@ import { redirect } from "react-router";
 
 export default async function dashboardLoader() {
   try {
+    // Check user role - only admin can access dashboard
+    const userResponse = await axiosInstance.get("/auth/me");
+    const userRole = userResponse.data?.data?.user?.role;
+
+    if (userRole !== "admin") {
+      return redirect("/dashboard/my-tasks");
+    }
+
     // Fetch tasks from the API
     const response = await axiosInstance.get("/tasks");
     return { events: response.data?.data?.tasks || [] };

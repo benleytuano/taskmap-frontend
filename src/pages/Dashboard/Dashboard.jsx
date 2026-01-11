@@ -1,5 +1,6 @@
-import { useState, useMemo } from "react";
-import { useLoaderData, useNavigate } from "react-router";
+import { useState, useMemo, useEffect } from "react";
+import { useLoaderData, useNavigate, useActionData } from "react-router";
+import { toast } from "sonner";
 import { Search, Plus } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -21,11 +22,24 @@ const ITEMS_PER_PAGE = 5;
 
 export default function Dashboard() {
   const { events } = useLoaderData();
+  const actionData = useActionData();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [activeTab, setActiveTab] = useState("ongoing");
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+
+  // Handle action response (task creation)
+  useEffect(() => {
+    if (actionData) {
+      if (actionData.success) {
+        toast.success(actionData.message || "Task created successfully");
+        setIsTaskModalOpen(false);
+      } else if (actionData.errors?.general) {
+        toast.error(actionData.errors.general[0]);
+      }
+    }
+  }, [actionData]);
 
   // Filter tasks by completion status and search query
   const filteredEvents = useMemo(() => {

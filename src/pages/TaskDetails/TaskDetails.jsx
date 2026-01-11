@@ -1,14 +1,98 @@
-import { useLoaderData, useNavigate } from "react-router";
-import { ArrowLeft, Download, FileIcon, UserPlus, Edit, Trash2 } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { useLoaderData, useNavigate, useActionData, useSubmit } from "react-router";
+import { toast } from "sonner";
+import { ArrowLeft, Download, FileIcon, UserPlus, Edit, Trash2, X, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { AddWatcherDialog } from "@/components/AddWatcherDialog";
+import { AddAssigneeDialog } from "@/components/AddAssigneeDialog";
+import { AddAttachmentDialog } from "@/components/AddAttachmentDialog";
+import { EditTaskModal } from "@/components/EditTaskModal";
+import { DeleteTaskDialog } from "@/components/DeleteTaskDialog";
+import { AssignmentDetailsModal } from "@/components/AssignmentDetailsModal";
 
 export default function TaskDetails() {
   const { task } = useLoaderData();
+  const actionData = useActionData();
   const navigate = useNavigate();
+  const submit = useSubmit();
+
+  // Dialog states
+  const [isWatcherDialogOpen, setIsWatcherDialogOpen] = useState(false);
+  const [isAssigneeDialogOpen, setIsAssigneeDialogOpen] = useState(false);
+  const [isAttachmentDialogOpen, setIsAttachmentDialogOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isAssignmentModalOpen, setIsAssignmentModalOpen] = useState(false);
+  const [selectedAssignment, setSelectedAssignment] = useState(null);
+
+  // Assignee search and pagination
+  const [assigneeSearch, setAssigneeSearch] = useState("");
+  const [assigneePage, setAssigneePage] = useState(1);
+  const ASSIGNEES_PER_PAGE = 5;
+
+  // Filter and paginate assignments
+  const filteredAssignments = useMemo(() => {
+    if (!task.assignments) return [];
+    if (!assigneeSearch.trim()) return task.assignments;
+
+    return task.assignments.filter((assignment) =>
+      assignment.assignee.name.toLowerCase().includes(assigneeSearch.toLowerCase()) ||
+      assignment.assignee.email?.toLowerCase().includes(assigneeSearch.toLowerCase())
+    );
+  }, [task.assignments, assigneeSearch]);
+
+  const totalAssigneePages = Math.ceil(filteredAssignments.length / ASSIGNEES_PER_PAGE);
+  const paginatedAssignments = useMemo(() => {
+    const start = (assigneePage - 1) * ASSIGNEES_PER_PAGE;
+    return filteredAssignments.slice(start, start + ASSIGNEES_PER_PAGE);
+  }, [filteredAssignments, assigneePage]);
+
+  // Reset page when search changes
+  useEffect(() => {
+    setAssigneePage(1);
+  }, [assigneeSearch]);
+
+  // Handle action response
+  useEffect(() => {
+    if (actionData) {
+      if (actionData.success) {
+        toast.success(actionData.message);
+        // Close all dialogs on success
+        setIsWatcherDialogOpen(false);
+        setIsAssigneeDialogOpen(false);
+        setIsAttachmentDialogOpen(false);
+        setIsEditModalOpen(false);
+      } else {
+        toast.error(actionData.message || "An error occurred");
+      }
+    }
+  }, [actionData]);
+
+  // Remove handlers
+  const handleRemoveWatcher = (userId) => {
+    const formData = new FormData();
+    formData.append("intent", "remove-watcher");
+    formData.append("user_id", userId);
+    submit(formData, { method: "post" });
+  };
+
+  const handleRemoveAttachment = (attachmentId) => {
+    const formData = new FormData();
+    formData.append("intent", "remove-attachment");
+    formData.append("attachment_id", attachmentId);
+    submit(formData, { method: "post" });
+  };
+
+  const handleRemoveAssignment = (assignmentId) => {
+    const formData = new FormData();
+    formData.append("intent", "remove-assignment");
+    formData.append("assignment_id", assignmentId);
+    submit(formData, { method: "post" });
+  };
 
   // Format dates
   const formatDate = (dateString) => {
@@ -100,10 +184,20 @@ export default function TaskDetails() {
 
           {/* Action Buttons */}
           <div className="flex gap-1 flex-shrink-0">
-            <Button size="sm" variant="ghost" className="h-7 w-7 p-0">
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 w-7 p-0"
+              onClick={() => setIsEditModalOpen(true)}
+            >
               <Edit className="size-3.5" />
             </Button>
-            <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50">
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+              onClick={() => setIsDeleteDialogOpen(true)}
+            >
               <Trash2 className="size-3.5" />
             </Button>
           </div>
@@ -121,34 +215,49 @@ export default function TaskDetails() {
         {/* Task Attachments - Scrollable */}
         <div className="mb-3">
           <div className="flex items-center justify-between mb-1.5">
-            <h3 className="text-xs font-semibold">📁 Task Attachments ({task.attachments?.length || 0})</h3>
-            <Button size="sm" variant="ghost" className="h-6 text-xs px-2">
+            <h3 className="text-xs font-semibold">Task Attachments ({task.attachments?.length || 0})</h3>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-6 text-xs px-2"
+              onClick={() => setIsAttachmentDialogOpen(true)}
+            >
               <FileIcon className="size-3 mr-1" />
               Add File
             </Button>
           </div>
           {task.attachments && task.attachments.length > 0 ? (
             <div className="max-h-[120px] overflow-y-auto space-y-1 pr-1">
-              {task.attachments.map((file, index) => (
+              {task.attachments.map((file) => (
                 <div
-                  key={index}
+                  key={file.id}
                   className="flex items-center justify-between p-1.5 border rounded hover:bg-accent/50 transition-colors"
                 >
                   <div className="flex items-center gap-1.5 min-w-0 flex-1">
                     <FileIcon className="size-3 text-muted-foreground flex-shrink-0" />
                     <div className="min-w-0 flex-1">
-                      <p className="text-xs font-medium truncate">{file.filename}</p>
+                      <p className="text-xs font-medium truncate">{file.original_filename}</p>
                       <p className="text-[10px] text-muted-foreground">
-                        {(file.file_size / 1024).toFixed(0)} KB
+                        {file.file_size_formatted || `${(file.file_size / 1024).toFixed(0)} KB`}
                       </p>
                     </div>
                   </div>
-                  <Button size="sm" variant="ghost" className="h-6 text-[10px] px-1.5 flex-shrink-0" asChild>
-                    <a href={file.file_path} target="_blank" rel="noopener noreferrer">
-                      <Download className="size-3 mr-0.5" />
-                      Download
-                    </a>
-                  </Button>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <Button size="sm" variant="ghost" className="h-6 text-[10px] px-1.5" asChild>
+                      <a href={file.download_url} download={file.original_filename}>
+                        <Download className="size-3 mr-0.5" />
+                        Download
+                      </a>
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                      onClick={() => handleRemoveAttachment(file.id)}
+                    >
+                      <X className="size-3" />
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -162,16 +271,33 @@ export default function TaskDetails() {
         {/* Watchers */}
         <div className="mb-3">
           <div className="flex items-center justify-between mb-1.5">
-            <h3 className="text-xs font-semibold">👁 Watchers ({task.watchers?.length || 0})</h3>
-            <Button size="sm" variant="ghost" className="h-6 text-xs px-2">
+            <h3 className="text-xs font-semibold">Watchers ({task.watchers?.length || 0})</h3>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-6 text-xs px-2"
+              onClick={() => setIsWatcherDialogOpen(true)}
+            >
               <UserPlus className="size-3 mr-1" />
               Add
             </Button>
           </div>
           {task.watchers && task.watchers.length > 0 ? (
-            <p className="text-xs text-muted-foreground">
-              {task.watchers.map((w) => w.user.name).join(", ")}
-            </p>
+            <div className="flex flex-wrap gap-1">
+              {task.watchers.map((w) => (
+                <Badge key={w.id} variant="secondary" className="text-xs pr-1">
+                  {w.user.name}
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-4 w-4 p-0 ml-1 hover:bg-red-100"
+                    onClick={() => handleRemoveWatcher(w.user.id)}
+                  >
+                    <X className="size-2.5" />
+                  </Button>
+                </Badge>
+              ))}
+            </div>
           ) : (
             <p className="text-xs text-muted-foreground">No watchers</p>
           )}
@@ -197,27 +323,146 @@ export default function TaskDetails() {
       </div>
 
       {/* Assignees */}
-      <div>
-        <h3 className="text-xs font-semibold mb-1.5 px-1">Assignees</h3>
-        <div className="space-y-1.5">
-          {task.assignments && task.assignments.length > 0 ? (
-            task.assignments.map((assignment) => (
-              <AssignmentCard
-                key={assignment.id}
-                assignment={assignment}
-                getStatusBadge={getStatusBadge}
-                getInitials={getInitials}
-                formatDate={formatDate}
-              />
-            ))
-          ) : (
-            <div className="border rounded-lg p-4">
-              <p className="text-xs text-muted-foreground text-center">
-                No assignees yet
-              </p>
-            </div>
-          )}
+      <div className="border rounded-lg p-4">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-semibold">
+            Assignees ({task.assignments?.length || 0})
+          </h3>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8"
+            onClick={() => setIsAssigneeDialogOpen(true)}
+          >
+            <UserPlus className="size-4 mr-2" />
+            Add Assignee
+          </Button>
         </div>
+
+        {/* Search */}
+        {task.assignments && task.assignments.length > 0 && (
+          <div className="relative mb-4">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 size-4 text-muted-foreground" />
+            <Input
+              placeholder="Search assignees..."
+              value={assigneeSearch}
+              onChange={(e) => setAssigneeSearch(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+        )}
+
+        {/* Assignee Table */}
+        {paginatedAssignments.length > 0 ? (
+          <div className="border rounded-md overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-muted/50">
+                <tr>
+                  <th className="text-left text-xs font-medium text-muted-foreground px-4 py-2">Name</th>
+                  <th className="text-center text-xs font-medium text-muted-foreground px-4 py-2">Status</th>
+                  <th className="text-right text-xs font-medium text-muted-foreground px-4 py-2">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {paginatedAssignments.map((assignment) => {
+                  const statusStyle = getStatusBadge(assignment.status);
+                  return (
+                    <tr
+                      key={assignment.id}
+                      className="hover:bg-muted/30 cursor-pointer transition-colors"
+                      onClick={() => {
+                        setSelectedAssignment(assignment);
+                        setIsAssignmentModalOpen(true);
+                      }}
+                    >
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="size-8 bg-muted">
+                            <AvatarFallback className="text-xs bg-gray-200 text-gray-700">
+                              {getInitials(assignment.assignee?.name)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="text-sm font-medium">{assignment.assignee?.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {assignment.assignee?.section || assignment.assignee?.email}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <Badge className={`${statusStyle.bg} ${statusStyle.text} hover:${statusStyle.bg} text-xs`}>
+                          {statusStyle.label}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemoveAssignment(assignment.id);
+                          }}
+                        >
+                          <X className="size-4" />
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : task.assignments && task.assignments.length > 0 ? (
+          <div className="py-8 text-center">
+            <p className="text-sm text-muted-foreground">
+              No assignees found matching "{assigneeSearch}"
+            </p>
+          </div>
+        ) : (
+          <div className="py-8 text-center">
+            <p className="text-sm text-muted-foreground">
+              No assignees yet. Click "Add Assignee" to assign someone to this task.
+            </p>
+          </div>
+        )}
+
+        {/* Pagination */}
+        {totalAssigneePages > 1 && (
+          <div className="flex items-center justify-between mt-4 pt-4 border-t">
+            <p className="text-sm text-muted-foreground">
+              Showing {((assigneePage - 1) * ASSIGNEES_PER_PAGE) + 1}-
+              {Math.min(assigneePage * ASSIGNEES_PER_PAGE, filteredAssignments.length)} of {filteredAssignments.length}
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8"
+                onClick={() => setAssigneePage((p) => Math.max(1, p - 1))}
+                disabled={assigneePage === 1}
+              >
+                <ChevronLeft className="size-4 mr-1" />
+                Previous
+              </Button>
+              <span className="text-sm text-muted-foreground px-2">
+                Page {assigneePage} of {totalAssigneePages}
+              </span>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8"
+                onClick={() => setAssigneePage((p) => Math.min(totalAssigneePages, p + 1))}
+                disabled={assigneePage === totalAssigneePages}
+              >
+                Next
+                <ChevronRight className="size-4 ml-1" />
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Status History */}
@@ -239,97 +484,38 @@ export default function TaskDetails() {
           </ul>
         </div>
       )}
+
+      {/* Dialogs */}
+      <AddWatcherDialog
+        open={isWatcherDialogOpen}
+        onOpenChange={setIsWatcherDialogOpen}
+        existingWatchers={task.watchers || []}
+      />
+      <AddAssigneeDialog
+        open={isAssigneeDialogOpen}
+        onOpenChange={setIsAssigneeDialogOpen}
+        existingAssignments={task.assignments || []}
+      />
+      <AddAttachmentDialog
+        open={isAttachmentDialogOpen}
+        onOpenChange={setIsAttachmentDialogOpen}
+      />
+      <EditTaskModal
+        open={isEditModalOpen}
+        onOpenChange={setIsEditModalOpen}
+        task={task}
+      />
+      <DeleteTaskDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        task={task}
+      />
+      <AssignmentDetailsModal
+        open={isAssignmentModalOpen}
+        onOpenChange={setIsAssignmentModalOpen}
+        assignment={selectedAssignment}
+      />
     </div>
   );
 }
 
-function AssignmentCard({ assignment, getStatusBadge, getInitials, formatDate }) {
-  const statusStyle = getStatusBadge(assignment.status);
-
-  return (
-    <div className="border rounded-lg p-2">
-      <div className="space-y-2">
-        {/* Assignee Header */}
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0 flex-1">
-            <Avatar className="size-7 bg-muted flex-shrink-0">
-              <AvatarFallback className="text-[10px] bg-gray-200 text-gray-700">
-                {getInitials(assignment.assignee.name)}
-              </AvatarFallback>
-            </Avatar>
-            <div className="min-w-0 flex-1">
-              <h4 className="font-semibold text-xs truncate">{assignment.assignee.name}</h4>
-              <p className="text-[10px] text-muted-foreground">
-                {assignment.assignee.section || "Staff"}
-                {assignment.updated_at && assignment.status !== "pending" && (
-                  <span className="ml-1">
-                    • {assignment.status === "completed" || assignment.status === "approved"
-                      ? "Completed"
-                      : "Updated"}: {formatDate(assignment.updated_at)}
-                  </span>
-                )}
-              </p>
-            </div>
-          </div>
-
-          {/* Status Badge */}
-          <Badge className={`${statusStyle.bg} ${statusStyle.text} hover:${statusStyle.bg} text-[10px] px-1.5 py-0 flex-shrink-0`}>
-            {statusStyle.icon} {statusStyle.label}
-          </Badge>
-        </div>
-
-        {/* Progress Note */}
-        {assignment.progress_note && (
-          <div className="bg-muted/50 p-1.5 rounded text-xs">
-            <span className="text-muted-foreground italic">"{assignment.progress_note}"</span>
-          </div>
-        )}
-
-        {/* Assignment Attachments */}
-        {assignment.attachments && assignment.attachments.length > 0 && (
-          <div>
-            <h5 className="text-[10px] font-medium mb-1 text-muted-foreground">Attachments:</h5>
-            <div className="space-y-0.5">
-              {assignment.attachments.map((file, index) => (
-                <div
-                  key={index}
-                  className="flex items-center justify-between p-1 border rounded text-[10px]"
-                >
-                  <div className="flex items-center gap-1 min-w-0 flex-1">
-                    <FileIcon className="size-2.5 text-muted-foreground flex-shrink-0" />
-                    <span className="truncate">{file.filename}</span>
-                  </div>
-                  <Button size="sm" variant="ghost" className="h-5 text-[10px] px-1.5" asChild>
-                    <a href={file.file_path} target="_blank" rel="noopener noreferrer">
-                      Download
-                    </a>
-                  </Button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Admin/Assigner Remarks */}
-        {assignment.assigner_remarks && (
-          <div className="bg-muted p-1.5 rounded">
-            <h5 className="text-[10px] font-medium mb-0.5">Your Remarks:</h5>
-            <p className="text-xs">{assignment.assigner_remarks}</p>
-          </div>
-        )}
-
-        {/* Action Buttons for "For Review" status */}
-        {assignment.status === "for_review" && (
-          <div className="flex gap-1.5 pt-0.5">
-            <Button size="sm" className="flex-1 h-7 text-xs">
-              ✓ Approve
-            </Button>
-            <Button size="sm" variant="outline" className="flex-1 h-7 text-xs">
-              ↩ Request Revision
-            </Button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}

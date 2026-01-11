@@ -1,3 +1,5 @@
+import { useState } from "react"
+import { Eye, EyeOff } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
@@ -17,6 +19,7 @@ export function LoginForm({
   const actionData = useActionData()
   const navigation = useNavigation()
   const isSubmitting = navigation.state === "submitting"
+  const [showPassword, setShowPassword] = useState(false)
 
   return (
     <Form method="post" className={cn("flex flex-col gap-6", className)} {...props}>
@@ -55,13 +58,28 @@ export function LoginForm({
               Forgot your password?
             </a>
           </div>
-          <Input
-            id="password"
-            name="password"
-            type="password"
-            required
-            disabled={isSubmitting}
-          />
+          <div className="relative">
+            <Input
+              id="password"
+              name="password"
+              type={showPassword ? "text" : "password"}
+              required
+              disabled={isSubmitting}
+              className="pr-10"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              tabIndex={-1}
+            >
+              {showPassword ? (
+                <EyeOff className="size-4" />
+              ) : (
+                <Eye className="size-4" />
+              )}
+            </button>
+          </div>
         </Field>
         <Field>
           <Button type="submit" disabled={isSubmitting}>

@@ -1,4 +1,4 @@
-import { Outlet, useLoaderData } from "react-router"
+import { Outlet, useLoaderData, useLocation, Link } from "react-router"
 import { AppSidebar } from "@/components/app-sidebar"
 import {
   Breadcrumb,
@@ -17,6 +17,52 @@ import {
 
 export default function RootLayout() {
   const user = useLoaderData();
+  const location = useLocation();
+  const isAdmin = user?.role === "admin";
+
+  // Generate breadcrumbs based on current path
+  const getBreadcrumbs = () => {
+    const path = location.pathname;
+
+    // Dashboard index (admin)
+    if (path === "/dashboard" && isAdmin) {
+      return [{ label: "Dashboard", href: null }];
+    }
+
+    // My Tasks index (user)
+    if (path === "/dashboard/my-tasks") {
+      return [{ label: "My Tasks", href: null }];
+    }
+
+    // User task details
+    if (path.startsWith("/dashboard/my-tasks/")) {
+      return [
+        { label: "My Tasks", href: "/dashboard/my-tasks" },
+        { label: "Task Details", href: null },
+      ];
+    }
+
+    // Admin task details
+    if (path.startsWith("/dashboard/tasks/")) {
+      return [
+        { label: "Dashboard", href: "/dashboard" },
+        { label: "Task Details", href: null },
+      ];
+    }
+
+    // Settings
+    if (path === "/dashboard/settings") {
+      return [
+        { label: isAdmin ? "Dashboard" : "My Tasks", href: isAdmin ? "/dashboard" : "/dashboard/my-tasks" },
+        { label: "Settings", href: null },
+      ];
+    }
+
+    // Default
+    return [{ label: isAdmin ? "Dashboard" : "My Tasks", href: null }];
+  };
+
+  const breadcrumbs = getBreadcrumbs();
 
   return (
     <SidebarProvider>
@@ -31,15 +77,20 @@ export default function RootLayout() {
             />
             <Breadcrumb>
               <BreadcrumbList>
-                <BreadcrumbItem className="hidden md:block">
-                  <BreadcrumbLink href="#">
-                    Building Your Application
-                  </BreadcrumbLink>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator className="hidden md:block" />
-                <BreadcrumbItem>
-                  <BreadcrumbPage>Data Fetching</BreadcrumbPage>
-                </BreadcrumbItem>
+                {breadcrumbs.map((crumb, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    {index > 0 && <BreadcrumbSeparator className="hidden md:block" />}
+                    <BreadcrumbItem className={index < breadcrumbs.length - 1 ? "hidden md:block" : ""}>
+                      {crumb.href ? (
+                        <BreadcrumbLink asChild>
+                          <Link to={crumb.href}>{crumb.label}</Link>
+                        </BreadcrumbLink>
+                      ) : (
+                        <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
+                      )}
+                    </BreadcrumbItem>
+                  </div>
+                ))}
               </BreadcrumbList>
             </Breadcrumb>
           </div>

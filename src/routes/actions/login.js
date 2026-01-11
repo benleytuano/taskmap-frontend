@@ -14,8 +14,15 @@ export async function loginAction({ request }) {
       password,
     });
 
-    // Redirect to dashboard on successful login
-    return redirect("/dashboard");
+    // Get user role from response
+    const userRole = response.data?.data?.user?.role;
+
+    // Redirect based on user role
+    if (userRole === "admin") {
+      return redirect("/dashboard");
+    } else {
+      return redirect("/dashboard/my-tasks");
+    }
   } catch (error) {
     // Return error message to display in form
     if (error.response?.status === 401) {
