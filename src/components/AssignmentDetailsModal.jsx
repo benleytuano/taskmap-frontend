@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useSubmit } from "react-router";
+import { useState, useEffect } from "react";
+import { useSubmit, useActionData } from "react-router";
 import { Download, FileIcon, CheckCircle, RotateCcw } from "lucide-react";
 import {
   Dialog,
@@ -16,9 +16,19 @@ import { Separator } from "@/components/ui/separator";
 
 export function AssignmentDetailsModal({ open, onOpenChange, assignment, onActionComplete }) {
   const submit = useSubmit();
+  const actionData = useActionData();
   const [remarks, setRemarks] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showRevisionForm, setShowRevisionForm] = useState(false);
+
+  // Handle action response - reset internal state
+  useEffect(() => {
+    if (actionData && actionData.success && isSubmitting) {
+      setIsSubmitting(false);
+      setRemarks("");
+      setShowRevisionForm(false);
+    }
+  }, [actionData, isSubmitting]);
 
   if (!assignment) return null;
 
@@ -62,12 +72,6 @@ export function AssignmentDetailsModal({ open, onOpenChange, assignment, onActio
     formData.append("assignment_id", assignment.id);
 
     submit(formData, { method: "post" });
-
-    setTimeout(() => {
-      setIsSubmitting(false);
-      onOpenChange(false);
-      if (onActionComplete) onActionComplete();
-    }, 500);
   };
 
   const handleRequestRevision = () => {
@@ -80,14 +84,6 @@ export function AssignmentDetailsModal({ open, onOpenChange, assignment, onActio
     formData.append("assigner_remarks", remarks);
 
     submit(formData, { method: "post" });
-
-    setTimeout(() => {
-      setIsSubmitting(false);
-      setRemarks("");
-      setShowRevisionForm(false);
-      onOpenChange(false);
-      if (onActionComplete) onActionComplete();
-    }, 500);
   };
 
   const statusStyle = getStatusBadge(assignment.status);
@@ -166,8 +162,8 @@ export function AssignmentDetailsModal({ open, onOpenChange, assignment, onActio
             </div>
           )}
 
-          {/* Attachments */}
-          {assignment.attachments && assignment.attachments.length > 0 && (
+          {/* Attachments - Only show when for_review, completed, or approved */}
+          {assignment.attachments && assignment.attachments.length > 0 && (isForReview || isCompleted) && (
             <div>
               <Label className="text-xs text-muted-foreground">
                 Attachments ({assignment.attachments.length})

@@ -66,6 +66,7 @@ export default function TaskDetails() {
         setIsAssigneeDialogOpen(false);
         setIsAttachmentDialogOpen(false);
         setIsEditModalOpen(false);
+        setIsAssignmentModalOpen(false);
       } else {
         toast.error(actionData.message || "An error occurred");
       }

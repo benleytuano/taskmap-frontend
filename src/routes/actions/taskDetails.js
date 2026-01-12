@@ -160,10 +160,7 @@ export async function taskDetailsAction({ request, params }) {
       case "approve-assignment": {
         const assignmentId = formData.get("assignment_id");
         const response = await axiosInstance.put(
-          `/assignments/${assignmentId}`,
-          {
-            status: "approved",
-          }
+          `/tasks/${taskId}/assignments/${assignmentId}/approve`
         );
         return {
           success: true,
@@ -175,9 +172,8 @@ export async function taskDetailsAction({ request, params }) {
         const assignmentId = formData.get("assignment_id");
         const assignerRemarks = formData.get("assigner_remarks");
         const response = await axiosInstance.put(
-          `/assignments/${assignmentId}`,
+          `/tasks/${taskId}/assignments/${assignmentId}/revision`,
           {
-            status: "revision",
             assigner_remarks: assignerRemarks,
           }
         );

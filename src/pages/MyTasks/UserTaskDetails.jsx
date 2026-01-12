@@ -92,6 +92,7 @@ export default function UserTaskDetails() {
     formData.append("intent", "update-assignment");
     formData.append("assignment_id", userAssignment.id);
     formData.append("status", status);
+    formData.append("original_status", userAssignment?.status?.value || "pending");
     formData.append("progress_note", progressNote);
 
     // Add attachments
@@ -394,7 +395,12 @@ export default function UserTaskDetails() {
         userAssignment.status?.value !== "approved" &&
         userAssignment.status?.value !== "completed" && (
           <div className="border rounded-lg p-4">
-            <h3 className="text-sm font-semibold mb-4">Update Your Progress</h3>
+            <div className="mb-4">
+              <h3 className="text-sm font-semibold">Update Your Progress</h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                Update status, add notes, or upload files - all fields are optional
+              </p>
+            </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Status Select */}
@@ -494,13 +500,13 @@ export default function UserTaskDetails() {
               </div>
 
               {/* Action Buttons */}
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <Button
                   type="submit"
                   disabled={isSubmitting}
-                  className="flex-1 sm:flex-none"
+                  className="flex-1"
                 >
-                  {isSubmitting ? "Updating..." : "Save Progress"}
+                  {isSubmitting ? "Saving..." : "Save Changes"}
                 </Button>
 
                 {canSubmitForReview && (
@@ -508,7 +514,7 @@ export default function UserTaskDetails() {
                     type="button"
                     onClick={handleSubmitForReview}
                     disabled={isSubmitting}
-                    className="flex-1 sm:flex-none bg-green-600 hover:bg-green-700"
+                    className="flex-1 bg-green-600 hover:bg-green-700"
                   >
                     {isSubmitting ? "Submitting..." : "Submit for Review"}
                   </Button>

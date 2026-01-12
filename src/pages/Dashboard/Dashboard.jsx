@@ -88,6 +88,30 @@ export default function Dashboard() {
     setCurrentPage(1);
   };
 
+  // Calculate status counts across all assignments
+  const statusCounts = useMemo(() => {
+    const counts = {
+      pending: 0,
+      in_progress: 0,
+      completed: 0,
+    };
+
+    events?.forEach((task) => {
+      task.assignments?.forEach((assignment) => {
+        const status = assignment.status?.value || assignment.status;
+        if (status === "pending") {
+          counts.pending++;
+        } else if (status === "in_progress") {
+          counts.in_progress++;
+        } else if (status === "completed" || status === "approved") {
+          counts.completed++;
+        }
+      });
+    });
+
+    return counts;
+  }, [events]);
+
   return (
     <>
       {/* Header Section */}
@@ -109,6 +133,27 @@ export default function Dashboard() {
         open={isTaskModalOpen}
         onOpenChange={setIsTaskModalOpen}
       />
+
+      {/* Status Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        {/* Pending Card */}
+        <div className="border rounded-lg p-4 bg-card hover:shadow-md transition-shadow">
+          <h3 className="text-sm font-medium text-orange-600 mb-1">Pending</h3>
+          <p className="text-3xl font-bold text-orange-600">{statusCounts.pending}</p>
+        </div>
+
+        {/* In Progress Card */}
+        <div className="border rounded-lg p-4 bg-card hover:shadow-md transition-shadow">
+          <h3 className="text-sm font-medium text-blue-600 mb-1">In Progress</h3>
+          <p className="text-3xl font-bold text-blue-600">{statusCounts.in_progress}</p>
+        </div>
+
+        {/* Completed Card */}
+        <div className="border rounded-lg p-4 bg-card hover:shadow-md transition-shadow">
+          <h3 className="text-sm font-medium text-green-600 mb-1">Completed</h3>
+          <p className="text-3xl font-bold text-green-600">{statusCounts.completed}</p>
+        </div>
+      </div>
 
       {/* Main Content */}
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
