@@ -26,10 +26,10 @@ export default function MyTasks() {
   // Calculate stats based on assignment status
   const stats = useMemo(() => {
     const pending = assignments?.filter(
-      (a) => a.status?.value === "pending" || a.status?.value === "revision"
+      (a) => a.status?.value === "pending"
     ).length || 0;
     const inProgress = assignments?.filter(
-      (a) => a.status?.value === "in_progress" || a.status?.value === "for_review"
+      (a) => a.status?.value === "in_progress" || a.status?.value === "for_review" || a.status?.value === "revision"
     ).length || 0;
     const completed = assignments?.filter(
       (a) => a.status?.value === "completed" || a.status?.value === "approved"
@@ -45,11 +45,11 @@ export default function MyTasks() {
     // Filter by tab
     if (activeTab === "pending") {
       filtered = filtered.filter(
-        (a) => a.status?.value === "pending" || a.status?.value === "revision"
+        (a) => a.status?.value === "pending"
       );
     } else if (activeTab === "in_progress") {
       filtered = filtered.filter(
-        (a) => a.status?.value === "in_progress" || a.status?.value === "for_review"
+        (a) => a.status?.value === "in_progress" || a.status?.value === "for_review" || a.status?.value === "revision"
       );
     } else if (activeTab === "completed") {
       filtered = filtered.filter(

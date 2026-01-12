@@ -92,7 +92,10 @@ export default function UserTaskDetails() {
     formData.append("intent", "update-assignment");
     formData.append("assignment_id", userAssignment.id);
     formData.append("status", status);
-    formData.append("original_status", userAssignment?.status?.value || "pending");
+    formData.append(
+      "original_status",
+      userAssignment?.status?.value || "pending"
+    );
     formData.append("progress_note", progressNote);
 
     // Add attachments
@@ -184,7 +187,11 @@ export default function UserTaskDetails() {
   const getStatusOptions = () => {
     const currentStatus = userAssignment?.status?.value;
 
-    if (currentStatus === "pending" || currentStatus === "revision") {
+    if (currentStatus === "revision") {
+      return [{ value: "revision", label: "Revision" }];
+    }
+
+    if (currentStatus === "pending") {
       return [
         { value: "pending", label: "Pending" },
         { value: "in_progress", label: "In Progress" },
@@ -205,9 +212,8 @@ export default function UserTaskDetails() {
 
   const statusOptions = getStatusOptions();
   const canSubmitForReview =
-    status === "in_progress" &&
-    (userAssignment?.status?.value === "in_progress" ||
-      userAssignment?.status?.value === "revision");
+    userAssignment?.status?.value === "in_progress" ||
+    userAssignment?.status?.value === "revision";
 
   const currentStatusStyle = getStatusBadge(
     userAssignment?.status?.value || "pending"
@@ -398,7 +404,9 @@ export default function UserTaskDetails() {
             <div className="mb-4">
               <h3 className="text-sm font-semibold">Update Your Progress</h3>
               <p className="text-xs text-muted-foreground mt-1">
-                Update status, add notes, or upload files - all fields are optional
+                {userAssignment?.status?.value === "revision"
+                  ? "Fix the issues mentioned in admin remarks, then submit for review when ready"
+                  : "Update status, add notes, or upload files - all fields are optional"}
               </p>
             </div>
 
@@ -406,7 +414,11 @@ export default function UserTaskDetails() {
               {/* Status Select */}
               <div className="space-y-2">
                 <Label htmlFor="status">Status</Label>
-                <Select value={status} onValueChange={setStatus}>
+                <Select
+                  value={status}
+                  onValueChange={setStatus}
+                  disabled={userAssignment?.status?.value === "revision"}
+                >
                   <SelectTrigger id="status">
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
@@ -418,6 +430,11 @@ export default function UserTaskDetails() {
                     ))}
                   </SelectContent>
                 </Select>
+                {userAssignment?.status?.value === "revision" && (
+                  <p className="text-xs text-muted-foreground">
+                    Status is locked. Submit your fixes to move forward.
+                  </p>
+                )}
               </div>
 
               {/* Progress Note */}
@@ -516,7 +533,11 @@ export default function UserTaskDetails() {
                     disabled={isSubmitting}
                     className="flex-1 bg-green-600 hover:bg-green-700"
                   >
-                    {isSubmitting ? "Submitting..." : "Submit for Review"}
+                    {isSubmitting
+                      ? "Submitting..."
+                      : userAssignment?.status?.value === "revision"
+                      ? "Submit Fixes for Review"
+                      : "Submit for Review"}
                   </Button>
                 )}
               </div>
