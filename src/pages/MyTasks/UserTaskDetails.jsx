@@ -46,6 +46,16 @@ export default function UserTaskDetails() {
   const [attachments, setAttachments] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Sync local state with loader data when it changes (after revalidation)
+  useEffect(() => {
+    if (userAssignment?.status?.value) {
+      setStatus(userAssignment.status.value);
+    }
+    if (userAssignment?.progress_note !== undefined) {
+      setProgressNote(userAssignment.progress_note || "");
+    }
+  }, [userAssignment]);
+
   // Handle action response
   useEffect(() => {
     if (actionData) {
@@ -188,25 +198,25 @@ export default function UserTaskDetails() {
     const currentStatus = userAssignment?.status?.value;
 
     if (currentStatus === "revision") {
-      return [{ value: "revision", label: "Revision" }];
+      return [{ value: "revision", label: "Revision", disabled: false }];
     }
 
     if (currentStatus === "pending") {
       return [
-        { value: "pending", label: "Pending" },
-        { value: "in_progress", label: "In Progress" },
+        { value: "pending", label: "Pending", disabled: false },
+        { value: "in_progress", label: "In Progress", disabled: false },
       ];
     }
 
     if (currentStatus === "in_progress") {
       return [
-        { value: "pending", label: "Pending" },
-        { value: "in_progress", label: "In Progress" },
+        { value: "pending", label: "Pending", disabled: true },
+        { value: "in_progress", label: "In Progress", disabled: false },
       ];
     }
 
     return [
-      { value: currentStatus, label: getStatusBadge(currentStatus).label },
+      { value: currentStatus, label: getStatusBadge(currentStatus).label, disabled: false },
     ];
   };
 
@@ -424,7 +434,11 @@ export default function UserTaskDetails() {
                   </SelectTrigger>
                   <SelectContent>
                     {statusOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
+                      <SelectItem
+                        key={option.value}
+                        value={option.value}
+                        disabled={option.disabled}
+                      >
                         {option.label}
                       </SelectItem>
                     ))}

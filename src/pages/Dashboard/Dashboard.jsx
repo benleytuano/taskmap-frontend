@@ -94,17 +94,30 @@ export default function Dashboard() {
       pending: 0,
       in_progress: 0,
       completed: 0,
+      overdue: 0,
     };
 
+    const now = new Date();
+
     events?.forEach((task) => {
+      const taskDeadline = task.deadline ? new Date(task.deadline) : null;
+      const isTaskOverdue = taskDeadline && taskDeadline < now;
+
       task.assignments?.forEach((assignment) => {
         const status = assignment.status?.value || assignment.status;
+        const isNotCompleted = status !== "completed" && status !== "approved";
+
         if (status === "pending") {
           counts.pending++;
         } else if (status === "in_progress") {
           counts.in_progress++;
         } else if (status === "completed" || status === "approved") {
           counts.completed++;
+        }
+
+        // Count overdue assignments
+        if (isTaskOverdue && isNotCompleted) {
+          counts.overdue++;
         }
       });
     });
@@ -135,7 +148,7 @@ export default function Dashboard() {
       />
 
       {/* Status Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {/* Pending Card */}
         <div className="border rounded-lg p-4 bg-card hover:shadow-md transition-shadow">
           <h3 className="text-sm font-medium text-orange-600 mb-1">Pending</h3>
@@ -152,6 +165,12 @@ export default function Dashboard() {
         <div className="border rounded-lg p-4 bg-card hover:shadow-md transition-shadow">
           <h3 className="text-sm font-medium text-green-600 mb-1">Completed</h3>
           <p className="text-3xl font-bold text-green-600">{statusCounts.completed}</p>
+        </div>
+
+        {/* Overdue Card */}
+        <div className="border rounded-lg p-4 bg-card hover:shadow-md transition-shadow">
+          <h3 className="text-sm font-medium text-red-600 mb-1">Overdue</h3>
+          <p className="text-3xl font-bold text-red-600">{statusCounts.overdue}</p>
         </div>
       </div>
 

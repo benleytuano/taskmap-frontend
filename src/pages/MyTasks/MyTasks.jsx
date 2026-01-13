@@ -25,6 +25,8 @@ export default function MyTasks() {
 
   // Calculate stats based on assignment status
   const stats = useMemo(() => {
+    const now = new Date();
+
     const pending = assignments?.filter(
       (a) => a.status?.value === "pending"
     ).length || 0;
@@ -34,8 +36,14 @@ export default function MyTasks() {
     const completed = assignments?.filter(
       (a) => a.status?.value === "completed" || a.status?.value === "approved"
     ).length || 0;
+    const overdue = assignments?.filter((a) => {
+      const taskDeadline = a.task?.deadline ? new Date(a.task.deadline) : null;
+      const isTaskOverdue = taskDeadline && taskDeadline < now;
+      const isNotCompleted = a.status?.value !== "completed" && a.status?.value !== "approved";
+      return isTaskOverdue && isNotCompleted;
+    }).length || 0;
 
-    return { pending, inProgress, completed };
+    return { pending, inProgress, completed, overdue };
   }, [assignments]);
 
   // Filter assignments by tab and search query
@@ -86,7 +94,7 @@ export default function MyTasks() {
   return (
     <>
       {/* Stats Cards */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <Card className="border rounded-lg">
           <CardContent className="p-4">
             <p className="text-sm text-amber-600 font-medium">Pending</p>
@@ -103,6 +111,12 @@ export default function MyTasks() {
           <CardContent className="p-4">
             <p className="text-sm text-green-600 font-medium">Completed</p>
             <p className="text-2xl font-bold text-green-600">{stats.completed}</p>
+          </CardContent>
+        </Card>
+        <Card className="border rounded-lg">
+          <CardContent className="p-4">
+            <p className="text-sm text-red-600 font-medium">Overdue</p>
+            <p className="text-2xl font-bold text-red-600">{stats.overdue}</p>
           </CardContent>
         </Card>
       </div>
