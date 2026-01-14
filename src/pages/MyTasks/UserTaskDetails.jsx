@@ -289,7 +289,7 @@ export default function UserTaskDetails() {
             <div>
               <p className="text-xs text-muted-foreground">Assigned by</p>
               <p className="text-sm font-medium">
-                {task.creator?.name || "Unknown"}
+                {task.creator?.full_name || task.creator?.name || "Unknown"}
               </p>
             </div>
           </div>

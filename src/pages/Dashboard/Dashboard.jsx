@@ -331,7 +331,7 @@ function TaskCard({ task }) {
               {assignedUsers.slice(0, 2).map((user, index) => (
                 <Avatar key={index} className="size-6 border-2 border-background bg-muted">
                   <AvatarFallback className="text-[10px] bg-gray-200 text-gray-700">
-                    {getInitials(user.name)}
+                    {getInitials(user.full_name || user.name)}
                   </AvatarFallback>
                 </Avatar>
               ))}

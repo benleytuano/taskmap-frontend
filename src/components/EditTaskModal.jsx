@@ -230,21 +230,35 @@ export function EditTaskModal({ open, onOpenChange, task }) {
   const getSelectedUserNames = (userIds) => {
     return users
       .filter((user) => userIds.includes(user.id))
-      .map((user) => user.name);
+      .map((user) => user.full_name || user.name);
   };
 
   const filteredAssigneeUsers = users.filter(
-    (user) =>
-      user.name.toLowerCase().includes(assigneeSearch.toLowerCase()) ||
-      user.email.toLowerCase().includes(assigneeSearch.toLowerCase()) ||
-      user.employee_id.toLowerCase().includes(assigneeSearch.toLowerCase())
+    (user) => {
+      const name = user.full_name || user.name || "";
+      const email = user.email || "";
+      const employeeId = user.employee_id || "";
+
+      return (
+        name.toLowerCase().includes(assigneeSearch.toLowerCase()) ||
+        email.toLowerCase().includes(assigneeSearch.toLowerCase()) ||
+        employeeId.toLowerCase().includes(assigneeSearch.toLowerCase())
+      );
+    }
   );
 
   const filteredWatcherUsers = users.filter(
-    (user) =>
-      user.name.toLowerCase().includes(watcherSearch.toLowerCase()) ||
-      user.email.toLowerCase().includes(watcherSearch.toLowerCase()) ||
-      user.employee_id.toLowerCase().includes(watcherSearch.toLowerCase())
+    (user) => {
+      const name = user.full_name || user.name || "";
+      const email = user.email || "";
+      const employeeId = user.employee_id || "";
+
+      return (
+        name.toLowerCase().includes(watcherSearch.toLowerCase()) ||
+        email.toLowerCase().includes(watcherSearch.toLowerCase()) ||
+        employeeId.toLowerCase().includes(watcherSearch.toLowerCase())
+      );
+    }
   );
 
   const activeExistingAttachments = existingAttachments.filter(
@@ -377,7 +391,7 @@ export function EditTaskModal({ open, onOpenChange, task }) {
                           className="rounded border-gray-300"
                         />
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium">{user.name}</p>
+                          <p className="text-sm font-medium">{user.full_name || user.name}</p>
                           <p className="text-xs text-muted-foreground truncate">
                             {user.email} - {user.employee_id}
                           </p>
@@ -439,7 +453,7 @@ export function EditTaskModal({ open, onOpenChange, task }) {
                           className="rounded border-gray-300"
                         />
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium">{user.name}</p>
+                          <p className="text-sm font-medium">{user.full_name || user.name}</p>
                           <p className="text-xs text-muted-foreground truncate">
                             {user.email} - {user.employee_id}
                           </p>

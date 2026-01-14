@@ -220,15 +220,22 @@ export function CreateTaskModal({ open, onOpenChange }) {
   const getSelectedUserNames = (userIds) => {
     return users
       .filter((user) => userIds.includes(user.id))
-      .map((user) => user.name);
+      .map((user) => user.full_name || user.name);
   };
 
   // Filter users based on search query
   const filteredUsers = users.filter(
-    (user) =>
-      user.name.toLowerCase().includes(assigneeSearch.toLowerCase()) ||
-      user.email.toLowerCase().includes(assigneeSearch.toLowerCase()) ||
-      user.employee_id.toLowerCase().includes(assigneeSearch.toLowerCase())
+    (user) => {
+      const name = user.full_name || user.name || "";
+      const email = user.email || "";
+      const employeeId = user.employee_id || "";
+
+      return (
+        name.toLowerCase().includes(assigneeSearch.toLowerCase()) ||
+        email.toLowerCase().includes(assigneeSearch.toLowerCase()) ||
+        employeeId.toLowerCase().includes(assigneeSearch.toLowerCase())
+      );
+    }
   );
 
   return (
@@ -366,7 +373,7 @@ export function CreateTaskModal({ open, onOpenChange }) {
                           className="rounded border-gray-300"
                         />
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium">{user.name}</p>
+                          <p className="text-sm font-medium">{user.full_name || user.name}</p>
                           <p className="text-xs text-muted-foreground truncate">
                             {user.email} • {user.employee_id}
                           </p>

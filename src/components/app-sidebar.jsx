@@ -4,6 +4,7 @@ import {
   ListTodo,
   Settings2,
   ClipboardList,
+  Eye,
 } from "lucide-react"
 
 import { NavUser } from "@/components/nav-user"
@@ -28,6 +29,11 @@ const adminNav = [
     icon: LayoutDashboard,
   },
   {
+    title: "My Watched Tasks",
+    url: "/dashboard/my-watched-tasks",
+    icon: Eye,
+  },
+  {
     title: "Task",
     url: "/dashboard/task",
     icon: ListTodo,
@@ -45,6 +51,11 @@ const userNav = [
     title: "My Tasks",
     url: "/dashboard/my-tasks",
     icon: ClipboardList,
+  },
+  {
+    title: "My Watched Tasks",
+    url: "/dashboard/my-watched-tasks",
+    icon: Eye,
   },
   {
     title: "Settings",

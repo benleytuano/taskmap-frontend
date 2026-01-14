@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useLoaderData, useNavigate, useActionData, useSubmit } from "react-router";
+import { useLoaderData, useNavigate, useActionData, useSubmit, useRouteLoaderData } from "react-router";
 import { toast } from "sonner";
 import { ArrowLeft, Download, FileIcon, UserPlus, Edit, Trash2, X, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,27 @@ export default function TaskDetails() {
   const navigate = useNavigate();
   const submit = useSubmit();
 
+  // Get current user from parent route (RootLayout)
+  const currentUser = useRouteLoaderData("root");
+
+  // Determine if current user is just a watcher (not creator, not admin)
+  const isAdmin = currentUser?.role === "admin";
+  const isCreator = task?.created_by === currentUser?.id;
+  const isWatcher = task?.watchers?.some((w) => w.user.id === currentUser?.id);
+  const isOnlyWatcher = isWatcher && !isAdmin && !isCreator;
+
+  // Debug: Log permission state (remove after testing)
+  console.log("Permission Debug:", {
+    currentUserId: currentUser?.id,
+    currentUserRole: currentUser?.role,
+    taskCreatedBy: task?.created_by,
+    isAdmin,
+    isCreator,
+    isWatcher,
+    isOnlyWatcher,
+    watchers: task?.watchers
+  });
+
   // Dialog states
   const [isWatcherDialogOpen, setIsWatcherDialogOpen] = useState(false);
   const [isAssigneeDialogOpen, setIsAssigneeDialogOpen] = useState(false);
@@ -39,10 +60,14 @@ export default function TaskDetails() {
     if (!task.assignments) return [];
     if (!assigneeSearch.trim()) return task.assignments;
 
-    return task.assignments.filter((assignment) =>
-      assignment.assignee.name.toLowerCase().includes(assigneeSearch.toLowerCase()) ||
-      assignment.assignee.email?.toLowerCase().includes(assigneeSearch.toLowerCase())
-    );
+    return task.assignments.filter((assignment) => {
+      const name = assignment.assignee.full_name || assignment.assignee.name || "";
+      const email = assignment.assignee.email || "";
+      return (
+        name.toLowerCase().includes(assigneeSearch.toLowerCase()) ||
+        email.toLowerCase().includes(assigneeSearch.toLowerCase())
+      );
+    });
   }, [task.assignments, assigneeSearch]);
 
   const totalAssigneePages = Math.ceil(filteredAssignments.length / ASSIGNEES_PER_PAGE);
@@ -183,25 +208,27 @@ export default function TaskDetails() {
             <h1 className="text-lg font-bold">{task.title}</h1>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex gap-1 flex-shrink-0">
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-7 w-7 p-0"
-              onClick={() => setIsEditModalOpen(true)}
-            >
-              <Edit className="size-3.5" />
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-              onClick={() => setIsDeleteDialogOpen(true)}
-            >
-              <Trash2 className="size-3.5" />
-            </Button>
-          </div>
+          {/* Action Buttons - Only show for admin/creator */}
+          {!isOnlyWatcher && (
+            <div className="flex gap-1 flex-shrink-0">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 w-7 p-0"
+                onClick={() => setIsEditModalOpen(true)}
+              >
+                <Edit className="size-3.5" />
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                onClick={() => setIsDeleteDialogOpen(true)}
+              >
+                <Trash2 className="size-3.5" />
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Description */}
@@ -217,15 +244,17 @@ export default function TaskDetails() {
         <div className="mb-3">
           <div className="flex items-center justify-between mb-1.5">
             <h3 className="text-xs font-semibold">Task Attachments ({task.attachments?.length || 0})</h3>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-6 text-xs px-2"
-              onClick={() => setIsAttachmentDialogOpen(true)}
-            >
-              <FileIcon className="size-3 mr-1" />
-              Add File
-            </Button>
+            {!isOnlyWatcher && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-6 text-xs px-2"
+                onClick={() => setIsAttachmentDialogOpen(true)}
+              >
+                <FileIcon className="size-3 mr-1" />
+                Add File
+              </Button>
+            )}
           </div>
           {task.attachments && task.attachments.length > 0 ? (
             <div className="max-h-[120px] overflow-y-auto space-y-1 pr-1">
@@ -250,14 +279,16 @@ export default function TaskDetails() {
                         Download
                       </a>
                     </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                      onClick={() => handleRemoveAttachment(file.id)}
-                    >
-                      <X className="size-3" />
-                    </Button>
+                    {!isOnlyWatcher && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                        onClick={() => handleRemoveAttachment(file.id)}
+                      >
+                        <X className="size-3" />
+                      </Button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -273,29 +304,33 @@ export default function TaskDetails() {
         <div className="mb-3">
           <div className="flex items-center justify-between mb-1.5">
             <h3 className="text-xs font-semibold">Watchers ({task.watchers?.length || 0})</h3>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-6 text-xs px-2"
-              onClick={() => setIsWatcherDialogOpen(true)}
-            >
-              <UserPlus className="size-3 mr-1" />
-              Add
-            </Button>
+            {!isOnlyWatcher && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-6 text-xs px-2"
+                onClick={() => setIsWatcherDialogOpen(true)}
+              >
+                <UserPlus className="size-3 mr-1" />
+                Add
+              </Button>
+            )}
           </div>
           {task.watchers && task.watchers.length > 0 ? (
             <div className="flex flex-wrap gap-1">
               {task.watchers.map((w) => (
                 <Badge key={w.id} variant="secondary" className="text-xs pr-1">
-                  {w.user.name}
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-4 w-4 p-0 ml-1 hover:bg-red-100"
-                    onClick={() => handleRemoveWatcher(w.user.id)}
-                  >
-                    <X className="size-2.5" />
-                  </Button>
+                  {w.user.full_name || w.user.name}
+                  {!isOnlyWatcher && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-4 w-4 p-0 ml-1 hover:bg-red-100"
+                      onClick={() => handleRemoveWatcher(w.user.id)}
+                    >
+                      <X className="size-2.5" />
+                    </Button>
+                  )}
                 </Badge>
               ))}
             </div>
@@ -330,15 +365,17 @@ export default function TaskDetails() {
           <h3 className="text-sm font-semibold">
             Assignees ({task.assignments?.length || 0})
           </h3>
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-8"
-            onClick={() => setIsAssigneeDialogOpen(true)}
-          >
-            <UserPlus className="size-4 mr-2" />
-            Add Assignee
-          </Button>
+          {!isOnlyWatcher && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8"
+              onClick={() => setIsAssigneeDialogOpen(true)}
+            >
+              <UserPlus className="size-4 mr-2" />
+              Add Assignee
+            </Button>
+          )}
         </div>
 
         {/* Search */}
@@ -362,7 +399,9 @@ export default function TaskDetails() {
                 <tr>
                   <th className="text-left text-xs font-medium text-muted-foreground px-4 py-2">Name</th>
                   <th className="text-center text-xs font-medium text-muted-foreground px-4 py-2">Status</th>
-                  <th className="text-right text-xs font-medium text-muted-foreground px-4 py-2">Action</th>
+                  {!isOnlyWatcher && (
+                    <th className="text-right text-xs font-medium text-muted-foreground px-4 py-2">Action</th>
+                  )}
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -397,19 +436,21 @@ export default function TaskDetails() {
                           {statusStyle.label}
                         </Badge>
                       </td>
-                      <td className="px-4 py-3 text-right">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleRemoveAssignment(assignment.id);
-                          }}
-                        >
-                          <X className="size-4" />
-                        </Button>
-                      </td>
+                      {!isOnlyWatcher && (
+                        <td className="px-4 py-3 text-right">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRemoveAssignment(assignment.id);
+                            }}
+                          >
+                            <X className="size-4" />
+                          </Button>
+                        </td>
+                      )}
                     </tr>
                   );
                 })}

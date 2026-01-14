@@ -4,7 +4,6 @@ import { Search } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Pagination,
   PaginationContent,
@@ -17,68 +16,66 @@ import {
 
 const ITEMS_PER_PAGE = 5;
 
-export default function MyTasks() {
-  const { assignments } = useLoaderData();
+export default function MyWatchedTasks() {
+  const { tasks } = useLoaderData();
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [activeTab, setActiveTab] = useState("pending");
+  const [activeTab, setActiveTab] = useState("ongoing");
 
-  // Calculate stats based on assignment status
+  // Helper: check if task is completed
+  const isTaskCompleted = (task) => {
+    const totalAssignments = task.assignments?.length || 0;
+    const completedAssignments = task.assignments?.filter(
+      (a) => a.status?.value === "completed" || a.status?.value === "approved"
+    ).length || 0;
+    return totalAssignments > 0 && completedAssignments === totalAssignments;
+  };
+
+  // Calculate stats based on task status
   const stats = useMemo(() => {
     const now = new Date();
 
-    const pending = assignments?.filter(
-      (a) => a.status?.value === "pending"
+    const ongoing = tasks?.filter((task) => !isTaskCompleted(task)).length || 0;
+    const completed = tasks?.filter((task) => isTaskCompleted(task)).length || 0;
+
+    const highPriority = tasks?.filter(
+      (task) => task.priority?.value === "urgent" || task.priority?.value === "rush"
     ).length || 0;
-    const inProgress = assignments?.filter(
-      (a) => a.status?.value === "in_progress" || a.status?.value === "for_review" || a.status?.value === "revision"
-    ).length || 0;
-    const completed = assignments?.filter(
-      (a) => a.status?.value === "completed" || a.status?.value === "approved"
-    ).length || 0;
-    const overdue = assignments?.filter((a) => {
-      const taskDeadline = a.task?.deadline ? new Date(a.task.deadline) : null;
-      const isTaskOverdue = taskDeadline && taskDeadline < now;
-      const isNotCompleted = a.status?.value !== "completed" && a.status?.value !== "approved";
-      return isTaskOverdue && isNotCompleted;
+
+    const overdue = tasks?.filter((task) => {
+      const deadline = task.deadline ? new Date(task.deadline) : null;
+      const isOverdue = deadline && deadline < now;
+      return isOverdue && !isTaskCompleted(task);
     }).length || 0;
 
-    return { pending, inProgress, completed, overdue };
-  }, [assignments]);
+    return { ongoing, completed, highPriority, overdue };
+  }, [tasks]);
 
-  // Filter assignments by tab and search query
-  const filteredAssignments = useMemo(() => {
-    let filtered = assignments || [];
+  // Filter tasks by tab and search query
+  const filteredTasks = useMemo(() => {
+    let filtered = tasks || [];
 
     // Filter by tab
-    if (activeTab === "pending") {
-      filtered = filtered.filter(
-        (a) => a.status?.value === "pending"
-      );
-    } else if (activeTab === "in_progress") {
-      filtered = filtered.filter(
-        (a) => a.status?.value === "in_progress" || a.status?.value === "for_review" || a.status?.value === "revision"
-      );
+    if (activeTab === "ongoing") {
+      filtered = filtered.filter((task) => !isTaskCompleted(task));
     } else if (activeTab === "completed") {
-      filtered = filtered.filter(
-        (a) => a.status?.value === "completed" || a.status?.value === "approved"
-      );
+      filtered = filtered.filter((task) => isTaskCompleted(task));
     }
 
     // Filter by search query
     if (searchQuery.trim()) {
-      filtered = filtered.filter((assignment) =>
-        assignment.task?.title?.toLowerCase().includes(searchQuery.toLowerCase())
+      filtered = filtered.filter((task) =>
+        task.title?.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
     return filtered;
-  }, [assignments, activeTab, searchQuery]);
+  }, [tasks, activeTab, searchQuery]);
 
   // Pagination calculations
-  const totalPages = Math.ceil(filteredAssignments.length / ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(filteredTasks.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const currentAssignments = filteredAssignments.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  const currentTasks = filteredTasks.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
   // Reset to page 1 when changing tabs or search
   const handleTabChange = (value) => {
@@ -97,20 +94,20 @@ export default function MyTasks() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <Card className="border rounded-lg">
           <CardContent className="p-4">
-            <p className="text-sm text-amber-600 font-medium">Pending</p>
-            <p className="text-2xl font-bold text-amber-600">{stats.pending}</p>
-          </CardContent>
-        </Card>
-        <Card className="border rounded-lg">
-          <CardContent className="p-4">
-            <p className="text-sm text-blue-600 font-medium">In Progress</p>
-            <p className="text-2xl font-bold text-blue-600">{stats.inProgress}</p>
+            <p className="text-sm text-blue-600 font-medium">Ongoing</p>
+            <p className="text-2xl font-bold text-blue-600">{stats.ongoing}</p>
           </CardContent>
         </Card>
         <Card className="border rounded-lg">
           <CardContent className="p-4">
             <p className="text-sm text-green-600 font-medium">Completed</p>
             <p className="text-2xl font-bold text-green-600">{stats.completed}</p>
+          </CardContent>
+        </Card>
+        <Card className="border rounded-lg">
+          <CardContent className="p-4">
+            <p className="text-sm text-orange-600 font-medium">High Priority</p>
+            <p className="text-2xl font-bold text-orange-600">{stats.highPriority}</p>
           </CardContent>
         </Card>
         <Card className="border rounded-lg">
@@ -126,8 +123,7 @@ export default function MyTasks() {
         {/* Tabs Header with Search */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
           <TabsList>
-            <TabsTrigger value="pending">Pending</TabsTrigger>
-            <TabsTrigger value="in_progress">In Progress</TabsTrigger>
+            <TabsTrigger value="ongoing">Ongoing</TabsTrigger>
             <TabsTrigger value="completed">Completed</TabsTrigger>
           </TabsList>
 
@@ -142,24 +138,10 @@ export default function MyTasks() {
           </div>
         </div>
 
-        {/* Pending Tab Content */}
-        <TabsContent value="pending" className="mt-0">
-          <AssignmentList assignments={currentAssignments} searchQuery={searchQuery} emptyMessage="No pending tasks" />
-          {filteredAssignments.length > 0 && totalPages > 1 && (
-            <div className="mt-4">
-              <TaskPagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                onPageChange={setCurrentPage}
-              />
-            </div>
-          )}
-        </TabsContent>
-
-        {/* In Progress Tab Content */}
-        <TabsContent value="in_progress" className="mt-0">
-          <AssignmentList assignments={currentAssignments} searchQuery={searchQuery} emptyMessage="No tasks in progress" />
-          {filteredAssignments.length > 0 && totalPages > 1 && (
+        {/* Ongoing Tab Content */}
+        <TabsContent value="ongoing" className="mt-0">
+          <TaskList tasks={currentTasks} searchQuery={searchQuery} emptyMessage="No ongoing tasks" />
+          {filteredTasks.length > 0 && totalPages > 1 && (
             <div className="mt-4">
               <TaskPagination
                 currentPage={currentPage}
@@ -172,8 +154,8 @@ export default function MyTasks() {
 
         {/* Completed Tab Content */}
         <TabsContent value="completed" className="mt-0">
-          <AssignmentList assignments={currentAssignments} searchQuery={searchQuery} emptyMessage="No completed tasks" />
-          {filteredAssignments.length > 0 && totalPages > 1 && (
+          <TaskList tasks={currentTasks} searchQuery={searchQuery} emptyMessage="No completed tasks" />
+          {filteredTasks.length > 0 && totalPages > 1 && (
             <div className="mt-4">
               <TaskPagination
                 currentPage={currentPage}
@@ -188,8 +170,8 @@ export default function MyTasks() {
   );
 }
 
-function AssignmentList({ assignments, searchQuery, emptyMessage }) {
-  if (assignments.length === 0) {
+function TaskList({ tasks, searchQuery, emptyMessage }) {
+  if (tasks.length === 0) {
     return (
       <div className="text-center py-8">
         <p className="text-sm text-muted-foreground">
@@ -201,16 +183,15 @@ function AssignmentList({ assignments, searchQuery, emptyMessage }) {
 
   return (
     <div className="space-y-2">
-      {assignments.map((assignment) => (
-        <AssignmentCard key={assignment.id} assignment={assignment} />
+      {tasks.map((task) => (
+        <TaskCard key={task.id} task={task} />
       ))}
     </div>
   );
 }
 
-function AssignmentCard({ assignment }) {
+function TaskCard({ task }) {
   const navigate = useNavigate();
-  const task = assignment.task;
 
   // Format deadline date
   const deadline = task?.deadline
@@ -220,19 +201,6 @@ function AssignmentCard({ assignment }) {
         year: "numeric",
       })
     : null;
-
-  // Get status badge styling
-  const getStatusBadge = (statusValue) => {
-    const styles = {
-      pending: { bg: "bg-gray-100", text: "text-gray-700", label: "Pending" },
-      in_progress: { bg: "bg-blue-100", text: "text-blue-700", label: "In Progress" },
-      for_review: { bg: "bg-yellow-100", text: "text-yellow-700", label: "For Review" },
-      revision: { bg: "bg-orange-100", text: "text-orange-700", label: "Needs Revision" },
-      completed: { bg: "bg-green-100", text: "text-green-700", label: "Completed" },
-      approved: { bg: "bg-green-100", text: "text-green-700", label: "Approved" },
-    };
-    return styles[statusValue] || styles.pending;
-  };
 
   // Get priority badge styling
   const getPriorityBadge = (priorityValue) => {
@@ -244,12 +212,22 @@ function AssignmentCard({ assignment }) {
     return styles[priorityValue] || styles.standard;
   };
 
-  const statusStyle = getStatusBadge(assignment.status?.value);
   const priorityStyle = getPriorityBadge(task?.priority?.value);
+
+  // Calculate progress
+  const totalAssignments = task.assignments?.length || 0;
+  const completedAssignments = task.assignments?.filter(
+    (a) => a.status?.value === "completed" || a.status?.value === "approved"
+  ).length || 0;
+
+  const progressStyle =
+    totalAssignments > 0 && completedAssignments === totalAssignments
+      ? { bg: "bg-green-100", text: "text-green-700" }
+      : { bg: "bg-blue-100", text: "text-blue-700" };
 
   return (
     <div
-      onClick={() => navigate(`/dashboard/my-tasks/${assignment.id}`)}
+      onClick={() => navigate(`/dashboard/tasks/${task.id}`)}
       className="border rounded-lg p-3 hover:bg-accent/50 transition-colors cursor-pointer bg-card"
     >
       {/* Title and Badges */}
@@ -260,8 +238,8 @@ function AssignmentCard({ assignment }) {
             <span className={`text-[10px] px-1.5 py-0.5 rounded ${priorityStyle.bg} ${priorityStyle.text} font-medium`}>
               {priorityStyle.label}
             </span>
-            <span className={`text-[10px] px-1.5 py-0.5 rounded ${statusStyle.bg} ${statusStyle.text}`}>
-              {statusStyle.label}
+            <span className={`text-[10px] px-1.5 py-0.5 rounded ${progressStyle.bg} ${progressStyle.text}`}>
+              {completedAssignments}/{totalAssignments} Complete
             </span>
           </div>
         </div>
@@ -273,13 +251,9 @@ function AssignmentCard({ assignment }) {
           <p className="text-xs text-muted-foreground">Due: {deadline}</p>
         )}
         {(task?.creator?.full_name || task?.creator?.name) && (
-          <p className="text-xs text-muted-foreground">Assigned by: {task.creator.full_name || task.creator.name}</p>
+          <p className="text-xs text-muted-foreground">Created by: {task.creator.full_name || task.creator.name}</p>
         )}
-        {assignment.progress_note && (
-          <p className="text-xs text-muted-foreground italic truncate">
-            Note: {assignment.progress_note}
-          </p>
-        )}
+        <p className="text-xs text-muted-foreground">{totalAssignments} assignee(s)</p>
       </div>
     </div>
   );

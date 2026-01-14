@@ -10,7 +10,7 @@ import {
   FieldSeparator,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { Form, useActionData, useNavigation } from "react-router"
+import { Form, useActionData, useNavigation, Link } from "react-router"
 
 export function LoginForm({
   className,
@@ -86,7 +86,13 @@ export function LoginForm({
             {isSubmitting ? "Logging in..." : "Login"}
           </Button>
         </Field>
-        
+
+        <div className="text-center text-sm text-muted-foreground">
+          Don't have an account?{" "}
+          <Link to="/register" className="underline underline-offset-4 hover:text-foreground">
+            Register here
+          </Link>
+        </div>
       </FieldGroup>
     </Form>
   )

@@ -46,11 +46,18 @@ export function AddWatcherDialog({ open, onOpenChange, existingWatchers = [] }) 
 
   // Filter users based on search and exclude existing watchers
   const filteredUsers = users.filter(
-    (user) =>
-      !existingWatcherIds.includes(user.id) &&
-      (user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        user.employee_id.toLowerCase().includes(searchQuery.toLowerCase()))
+    (user) => {
+      const name = user.full_name || user.name || "";
+      const email = user.email || "";
+      const employeeId = user.employee_id || "";
+
+      return (
+        !existingWatcherIds.includes(user.id) &&
+        (name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          employeeId.toLowerCase().includes(searchQuery.toLowerCase()))
+      );
+    }
   );
 
   const handleSubmit = (e) => {
@@ -111,7 +118,7 @@ export function AddWatcherDialog({ open, onOpenChange, existingWatchers = [] }) 
                       className="sr-only"
                     />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium">{user.name}</p>
+                      <p className="text-sm font-medium">{user.full_name || user.name}</p>
                       <p className="text-xs text-muted-foreground truncate">
                         {user.email} - {user.employee_id}
                       </p>
