@@ -21,8 +21,8 @@ export async function userTaskDetailsAction({ request, params }) {
       });
 
       // Check if there are file attachments
-      const attachments = formData.getAll("attachments[]");
-      const hasFiles = attachments.some((file) => file instanceof File && file.size > 0);
+      const files = formData.getAll("files[]");
+      const hasFiles = files.some((file) => file instanceof File && file.size > 0);
 
       // Only send status if it actually changed
       const statusChanged = status !== originalStatus;
@@ -42,10 +42,10 @@ export async function userTaskDetailsAction({ request, params }) {
           updateData.append("progress_note", progressNote);
         }
 
-        // Add attachments
-        attachments.forEach((file) => {
+        // Add files
+        files.forEach((file) => {
           if (file instanceof File && file.size > 0) {
-            updateData.append("attachments[]", file);
+            updateData.append("files[]", file);
           }
         });
 

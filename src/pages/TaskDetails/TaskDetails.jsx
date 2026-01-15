@@ -61,8 +61,8 @@ export default function TaskDetails() {
     if (!assigneeSearch.trim()) return task.assignments;
 
     return task.assignments.filter((assignment) => {
-      const name = assignment.assignee.full_name || assignment.assignee.name || "";
-      const email = assignment.assignee.email || "";
+      const name = assignment.assignee?.full_name || assignment.assignee?.name || "";
+      const email = assignment.assignee?.email || "";
       return (
         name.toLowerCase().includes(assigneeSearch.toLowerCase()) ||
         email.toLowerCase().includes(assigneeSearch.toLowerCase())
@@ -261,13 +261,13 @@ export default function TaskDetails() {
               {task.attachments.map((file) => (
                 <div
                   key={file.id}
-                  className="flex items-center justify-between p-1.5 border rounded hover:bg-accent/50 transition-colors"
+                  className="flex items-center justify-between gap-2 p-1.5 border rounded hover:bg-accent/50 transition-colors overflow-hidden"
                 >
-                  <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5 min-w-0 flex-1 overflow-hidden">
                     <FileIcon className="size-3 text-muted-foreground flex-shrink-0" />
-                    <div className="min-w-0 flex-1">
+                    <div className="min-w-0 flex-1 overflow-hidden">
                       <p className="text-xs font-medium truncate">{file.original_filename}</p>
-                      <p className="text-[10px] text-muted-foreground">
+                      <p className="text-[10px] text-muted-foreground truncate">
                         {file.file_size_formatted || `${(file.file_size / 1024).toFixed(0)} KB`}
                       </p>
                     </div>
@@ -420,11 +420,11 @@ export default function TaskDetails() {
                         <div className="flex items-center gap-3">
                           <Avatar className="size-8 bg-muted">
                             <AvatarFallback className="text-xs bg-gray-200 text-gray-700">
-                              {getInitials(assignment.assignee?.name)}
+                              {getInitials(assignment.assignee?.full_name || assignment.assignee?.name)}
                             </AvatarFallback>
                           </Avatar>
                           <div>
-                            <p className="text-sm font-medium">{assignment.assignee?.name}</p>
+                            <p className="text-sm font-medium">{assignment.assignee?.full_name || assignment.assignee?.name}</p>
                             <p className="text-xs text-muted-foreground">
                               {assignment.assignee?.section || assignment.assignee?.email}
                             </p>
@@ -532,6 +532,7 @@ export default function TaskDetails() {
         open={isWatcherDialogOpen}
         onOpenChange={setIsWatcherDialogOpen}
         existingWatchers={task.watchers || []}
+        existingAssignments={task.assignments || []}
       />
       <AddAssigneeDialog
         open={isAssigneeDialogOpen}
@@ -541,6 +542,7 @@ export default function TaskDetails() {
       <AddAttachmentDialog
         open={isAttachmentDialogOpen}
         onOpenChange={setIsAttachmentDialogOpen}
+        existingAttachments={task.attachments || []}
       />
       <EditTaskModal
         open={isEditModalOpen}

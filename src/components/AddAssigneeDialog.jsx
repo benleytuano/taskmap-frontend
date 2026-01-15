@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import axiosInstance from "@/services/api";
 
 export function AddAssigneeDialog({ open, onOpenChange, existingAssignments = [] }) {
@@ -20,7 +21,7 @@ export function AddAssigneeDialog({ open, onOpenChange, existingAssignments = []
 
   const [users, setUsers] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedUserId, setSelectedUserId] = useState(null);
+  const [selectedUserIds, setSelectedUserIds] = useState([]);
 
   const isSubmitting = navigation.state === "submitting";
 
@@ -31,7 +32,7 @@ export function AddAssigneeDialog({ open, onOpenChange, existingAssignments = []
     if (open) {
       fetchUsers();
       setSearchQuery("");
-      setSelectedUserId(null);
+      setSelectedUserIds([]);
     }
   }, [open]);
 
@@ -60,13 +61,25 @@ export function AddAssigneeDialog({ open, onOpenChange, existingAssignments = []
     }
   );
 
+  const toggleUserSelection = (userId) => {
+    setSelectedUserIds((prev) =>
+      prev.includes(userId)
+        ? prev.filter((id) => id !== userId)
+        : [...prev, userId]
+    );
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!selectedUserId) return;
+    if (selectedUserIds.length === 0) return;
 
     const formData = new FormData();
     formData.append("intent", "add-assignment");
-    formData.append("user_id", selectedUserId);
+
+    // Append each user ID with the user_ids[] parameter name
+    selectedUserIds.forEach((userId) => {
+      formData.append("user_ids[]", userId);
+    });
 
     submit(formData, { method: "post" });
   };
@@ -75,9 +88,9 @@ export function AddAssigneeDialog({ open, onOpenChange, existingAssignments = []
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Add Assignee</DialogTitle>
+          <DialogTitle>Add Assignees</DialogTitle>
           <DialogDescription>
-            Select a user to assign this task to
+            Select one or more users to assign this task to
           </DialogDescription>
         </DialogHeader>
 
@@ -93,8 +106,15 @@ export function AddAssigneeDialog({ open, onOpenChange, existingAssignments = []
             />
           </div>
 
+          {/* Selected Count */}
+          {selectedUserIds.length > 0 && (
+            <p className="text-sm text-muted-foreground">
+              {selectedUserIds.length} user{selectedUserIds.length !== 1 ? 's' : ''} selected
+            </p>
+          )}
+
           {/* User List */}
-          <div className="border rounded-md p-3 max-h-48 overflow-y-auto">
+          <div className="border rounded-md p-3 max-h-64 overflow-y-auto">
             {users.length === 0 ? (
               <p className="text-sm text-muted-foreground">Loading users...</p>
             ) : filteredUsers.length === 0 ? (
@@ -104,18 +124,15 @@ export function AddAssigneeDialog({ open, onOpenChange, existingAssignments = []
                 {filteredUsers.map((user) => (
                   <label
                     key={user.id}
-                    className={`flex items-center space-x-2 cursor-pointer p-2 rounded transition-colors ${
-                      selectedUserId === user.id
+                    className={`flex items-center space-x-3 cursor-pointer p-2 rounded transition-colors ${
+                      selectedUserIds.includes(user.id)
                         ? "bg-primary/10 border border-primary"
                         : "hover:bg-muted"
                     }`}
                   >
-                    <input
-                      type="radio"
-                      name="user"
-                      checked={selectedUserId === user.id}
-                      onChange={() => setSelectedUserId(user.id)}
-                      className="sr-only"
+                    <Checkbox
+                      checked={selectedUserIds.includes(user.id)}
+                      onCheckedChange={() => toggleUserSelection(user.id)}
                     />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium">{user.full_name || user.name}</p>
@@ -141,8 +158,10 @@ export function AddAssigneeDialog({ open, onOpenChange, existingAssignments = []
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting || !selectedUserId}>
-              {isSubmitting ? "Adding..." : "Add Assignee"}
+            <Button type="submit" disabled={isSubmitting || selectedUserIds.length === 0}>
+              {isSubmitting
+                ? "Adding..."
+                : `Add ${selectedUserIds.length} assignee${selectedUserIds.length !== 1 ? 's' : ''}`}
             </Button>
           </DialogFooter>
         </form>

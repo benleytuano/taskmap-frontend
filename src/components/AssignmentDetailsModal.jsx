@@ -103,11 +103,11 @@ export function AssignmentDetailsModal({ open, onOpenChange, assignment, onActio
           <div className="flex items-center gap-3">
             <Avatar className="size-12 bg-muted">
               <AvatarFallback className="text-sm bg-gray-200 text-gray-700">
-                {getInitials(assignment.assignee?.name)}
+                {getInitials(assignment.assignee?.full_name || assignment.assignee?.name)}
               </AvatarFallback>
             </Avatar>
             <div>
-              <h3 className="font-semibold">{assignment.assignee?.name}</h3>
+              <h3 className="font-semibold">{assignment.assignee?.full_name || assignment.assignee?.name}</h3>
               <p className="text-sm text-muted-foreground">
                 {assignment.assignee?.section || assignment.assignee?.email || "Staff"}
               </p>

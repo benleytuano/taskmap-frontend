@@ -33,7 +33,7 @@ export default function RootLayout() {
     if (path === "/dashboard" && isAdmin) {
       return [{ label: "Dashboard", href: null }];
     }
-
+    
     // My Tasks index (user)
     if (path === "/dashboard/my-tasks") {
       return [{ label: "My Tasks", href: null }];

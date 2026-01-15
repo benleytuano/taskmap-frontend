@@ -4,8 +4,10 @@ import {
   useNavigate,
   useActionData,
   useSubmit,
+  useRevalidator,
 } from "react-router";
 import { toast } from "sonner";
+import axiosInstance from "@/services/api";
 import {
   ArrowLeft,
   Download,
@@ -29,12 +31,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function UserTaskDetails() {
   const { task, userAssignment } = useLoaderData();
   const actionData = useActionData();
   const navigate = useNavigate();
   const submit = useSubmit();
+  const revalidator = useRevalidator();
 
   // Form state for updating assignment
   const [status, setStatus] = useState(
@@ -45,6 +58,11 @@ export default function UserTaskDetails() {
   );
   const [attachments, setAttachments] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Delete confirmation dialog state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [fileToDelete, setFileToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Sync local state with loader data when it changes (after revalidation)
   useEffect(() => {
@@ -93,6 +111,40 @@ export default function UserTaskDetails() {
     setAttachments((prev) => prev.filter((_, i) => i !== index));
   };
 
+  // Open delete confirmation dialog
+  const handleDeleteAttachment = (file) => {
+    setFileToDelete(file);
+    setDeleteDialogOpen(true);
+  };
+
+  // Confirm and delete the attachment
+  const confirmDeleteAttachment = async () => {
+    if (!fileToDelete) return;
+
+    setIsDeleting(true);
+    try {
+      const response = await axiosInstance.delete(
+        `/my-tasks/${userAssignment.id}/attachments/${fileToDelete.id}`
+      );
+
+      toast.success(response.data.message || "Attachment deleted successfully");
+
+      // Revalidate to refresh the data
+      revalidator.revalidate();
+
+      // Close dialog and reset state
+      setDeleteDialogOpen(false);
+      setFileToDelete(null);
+    } catch (error) {
+      console.error("Failed to delete attachment:", error);
+      toast.error(
+        error.response?.data?.message || "Failed to delete attachment. Please try again."
+      );
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   // Handle form submission
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -108,9 +160,9 @@ export default function UserTaskDetails() {
     );
     formData.append("progress_note", progressNote);
 
-    // Add attachments
+    // Add files
     attachments.forEach((file) => {
-      formData.append("attachments[]", file);
+      formData.append("files[]", file);
     });
 
     submit(formData, {
@@ -375,7 +427,7 @@ export default function UserTaskDetails() {
             {userAssignment.attachments.map((file) => (
               <div
                 key={file.id}
-                className="flex items-center justify-between p-2 border rounded hover:bg-accent/50 transition-colors"
+                className="flex items-center justify-between gap-2 p-2 border rounded hover:bg-accent/50 transition-colors"
               >
                 <div className="flex items-center gap-2 min-w-0 flex-1">
                   <FileIcon className="size-4 text-muted-foreground flex-shrink-0" />
@@ -389,17 +441,27 @@ export default function UserTaskDetails() {
                     </p>
                   </div>
                 </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-8 text-xs"
-                  asChild
-                >
-                  <a href={file.download_url} download={file.original_filename}>
-                    <Download className="size-3 mr-1" />
-                    Download
-                  </a>
-                </Button>
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 text-xs"
+                    asChild
+                  >
+                    <a href={file.download_url} download={file.original_filename}>
+                      <Download className="size-3 mr-1" />
+                      Download
+                    </a>
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                    onClick={() => handleDeleteAttachment(file)}
+                  >
+                    <X className="size-4" />
+                  </Button>
+                </div>
               </div>
             ))}
           </div>
@@ -465,11 +527,16 @@ export default function UserTaskDetails() {
 
               {/* File Attachments */}
               <div className="space-y-2">
-                <Label htmlFor="attachments">
-                  Upload Work Files ({attachments.length}/5)
-                </Label>
+                <div className="flex items-center justify-between gap-2">
+                  <Label htmlFor="attachments">
+                    Upload Work Files ({attachments.length}/5)
+                  </Label>
+                  <span className="text-xs text-muted-foreground hidden sm:inline">
+                    Max 5 files, 10MB each
+                  </span>
+                </div>
                 <div className="space-y-2">
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                     <Input
                       id="attachments"
                       type="file"
@@ -490,7 +557,7 @@ export default function UserTaskDetails() {
                       <Upload className="w-4 h-4 mr-2" />
                       Add Files
                     </Button>
-                    <span className="text-sm text-muted-foreground">
+                    <span className="text-xs text-muted-foreground sm:hidden">
                       Max 5 files, 10MB each
                     </span>
                   </div>
@@ -598,6 +665,29 @@ export default function UserTaskDetails() {
             )}
           </div>
         )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Attachment</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{fileToDelete?.original_filename}"?
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteAttachment}
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+            >
+              {isDeleting ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -10,56 +10,18 @@ export async function taskDetailsAction({ request, params }) {
     switch (intent) {
       // Task operations
       case "update-task": {
-        // Build FormData for multipart request
-        const updateData = new FormData();
-
-        // Add text fields if present
         const title = formData.get("title");
         const description = formData.get("description");
         const deadline = formData.get("deadline");
         const priority = formData.get("priority");
 
-        if (title) updateData.append("title", title);
-        if (description !== null) updateData.append("description", description);
-        if (deadline) updateData.append("deadline", deadline);
-        if (priority) updateData.append("priority", priority);
-
-        // Add assigned users
-        const assignedTo = formData.getAll("assigned_to[]");
-        assignedTo.forEach((userId) => {
-          updateData.append("assigned_to[]", userId);
-        });
-
-        // Add watchers
-        const watchers = formData.getAll("watchers[]");
-        watchers.forEach((userId) => {
-          updateData.append("watchers[]", userId);
-        });
-
-        // Add new attachments
-        const attachments = formData.getAll("attachments[]");
-        attachments.forEach((file) => {
-          if (file instanceof File && file.size > 0) {
-            updateData.append("attachments[]", file);
-          }
-        });
-
-        // Add attachments to remove
-        const removeAttachments = formData.getAll("remove_attachments[]");
-        removeAttachments.forEach((id) => {
-          updateData.append("remove_attachments[]", id);
-        });
-
-        const response = await axiosInstance.post(
+        const response = await axiosInstance.put(
           `/tasks/${taskId}`,
-          updateData,
           {
-            headers: {
-              "Content-Type": "multipart/form-data",
-            },
-            params: {
-              _method: "PUT",
-            },
+            title,
+            description,
+            deadline,
+            priority,
           }
         );
 
@@ -78,13 +40,14 @@ export async function taskDetailsAction({ request, params }) {
 
       // Watcher operations
       case "add-watcher": {
-        const userId = formData.get("user_id");
+        const userIds = formData.getAll("user_ids[]").map((id) => parseInt(id));
         const response = await axiosInstance.post(`/tasks/${taskId}/watchers`, {
-          user_id: parseInt(userId),
+          user_ids: userIds,
         });
         return {
           success: true,
-          message: response.data.message || "Watcher added successfully",
+          message: response.data.message || "Watchers added successfully",
+          data: response.data.data,
         };
       }
 
@@ -101,9 +64,13 @@ export async function taskDetailsAction({ request, params }) {
 
       // Attachment operations
       case "add-attachment": {
-        const file = formData.get("file");
+        const files = formData.getAll("files[]");
         const uploadData = new FormData();
-        uploadData.append("file", file);
+
+        // Append all files with the files[] parameter name
+        files.forEach(file => {
+          uploadData.append("files[]", file);
+        });
 
         const response = await axiosInstance.post(
           `/tasks/${taskId}/attachments`,
@@ -116,7 +83,7 @@ export async function taskDetailsAction({ request, params }) {
         );
         return {
           success: true,
-          message: response.data.message || "Attachment uploaded successfully",
+          message: response.data.message || "Attachments uploaded successfully",
         };
       }
 
@@ -133,16 +100,17 @@ export async function taskDetailsAction({ request, params }) {
 
       // Assignment operations
       case "add-assignment": {
-        const userId = formData.get("user_id");
+        const userIds = formData.getAll("user_ids[]").map((id) => parseInt(id));
         const response = await axiosInstance.post(
           `/tasks/${taskId}/assignments`,
           {
-            user_id: parseInt(userId),
+            user_ids: userIds,
           }
         );
         return {
           success: true,
-          message: response.data.message || "Assignment added successfully",
+          message: response.data.message || "Assignments added successfully",
+          data: response.data.data,
         };
       }
 
