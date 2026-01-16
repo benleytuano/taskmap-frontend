@@ -63,6 +63,14 @@ export default function RootLayout() {
       ];
     }
 
+    // Organizational Designations
+    if (path === "/dashboard/organizational-designations") {
+      return [
+        { label: "Dashboard", href: "/dashboard" },
+        { label: "Organizational Designations", href: null },
+      ];
+    }
+
     // Default
     return [{ label: isAdmin ? "Dashboard" : "My Tasks", href: null }];
   };

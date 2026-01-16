@@ -8,6 +8,7 @@ import TaskDetails from "@/pages/TaskDetails/TaskDetails";
 import MyTasks from "@/pages/MyTasks/MyTasks";
 import MyWatchedTasks from "@/pages/MyWatchedTasks/MyWatchedTasks";
 import UserTaskDetails from "@/pages/MyTasks/UserTaskDetails";
+import OrganizationalDesignations from "@/pages/OrganizationalDesignations/OrganizationalDesignations";
 import RootLayout from "@/layouts/RootLayout";
 
 // Loaders
@@ -17,6 +18,7 @@ import taskDetailsLoader from "./loaders/taskDetails";
 import myTasksLoader from "./loaders/myTasks";
 import myWatchedTasksLoader from "./loaders/myWatchedTasks";
 import userTaskDetailsLoader from "./loaders/userTaskDetails";
+import organizationalDesignationsLoader from "./loaders/organizationalDesignations";
 
 // Actions
 import { loginAction } from "./actions/login";
@@ -24,6 +26,7 @@ import { registerAction } from "./actions/register";
 import { createTaskAction } from "./actions/createTask";
 import { taskDetailsAction } from "./actions/taskDetails";
 import { userTaskDetailsAction } from "./actions/userTaskDetails";
+import { createOrganizationalDesignationAction } from "./actions/createOrganizationalDesignation";
 
 export const router = createBrowserRouter([
   // Public routes
@@ -71,6 +74,12 @@ export const router = createBrowserRouter([
         Component: TaskDetails,
         loader: taskDetailsLoader,
         action: taskDetailsAction,
+      },
+      {
+        path: "organizational-designations",
+        Component: OrganizationalDesignations,
+        loader: organizationalDesignationsLoader,
+        action: createOrganizationalDesignationAction,
       },
       // Add more dashboard child routes here:
       // { path: "settings", Component: Settings },

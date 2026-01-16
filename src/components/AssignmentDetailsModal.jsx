@@ -93,12 +93,12 @@ export function AssignmentDetailsModal({ open, onOpenChange, assignment, onActio
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md" onInteractOutside={(e) => e.preventDefault()}>
+      <DialogContent className="max-w-md overflow-hidden" onInteractOutside={(e) => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle>Assignment Details</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="space-y-4 w-full overflow-hidden">
           {/* Assignee Info */}
           <div className="flex items-center gap-3">
             <Avatar className="size-12 bg-muted">
@@ -168,19 +168,19 @@ export function AssignmentDetailsModal({ open, onOpenChange, assignment, onActio
               <Label className="text-xs text-muted-foreground">
                 Attachments ({assignment.attachments.length})
               </Label>
-              <div className="mt-1 space-y-2">
+              <div className="mt-1 space-y-2 w-full">
                 {assignment.attachments.map((file) => (
                   <div
                     key={file.id}
-                    className="flex items-center justify-between p-2 border rounded-md bg-background"
+                    className="flex items-center gap-2 p-2 border rounded-md bg-background w-full overflow-hidden"
                   >
                     <div className="flex items-center gap-2 min-w-0 flex-1">
                       <FileIcon className="size-4 text-muted-foreground flex-shrink-0" />
-                      <span className="text-sm truncate">
+                      <span className="text-sm truncate min-w-0">
                         {file.original_filename || file.filename}
                       </span>
                     </div>
-                    <Button size="sm" variant="ghost" className="h-7 text-xs px-2" asChild>
+                    <Button size="sm" variant="ghost" className="h-7 text-xs px-2 flex-shrink-0 whitespace-nowrap" asChild>
                       <a href={file.download_url} download={file.original_filename || file.filename}>
                         <Download className="size-3 mr-1" />
                         Download

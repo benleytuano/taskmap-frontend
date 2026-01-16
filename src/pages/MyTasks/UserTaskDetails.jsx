@@ -160,9 +160,9 @@ export default function UserTaskDetails() {
     );
     formData.append("progress_note", progressNote);
 
-    // Add files
+    // Add files using attachments[] (matches new API endpoint)
     attachments.forEach((file) => {
-      formData.append("files[]", file);
+      formData.append("attachments[]", file);
     });
 
     submit(formData, {

@@ -221,6 +221,10 @@ function AssignmentCard({ assignment }) {
       })
     : null;
 
+  // Check if task is overdue
+  const isOverdue = task?.deadline && new Date(task.deadline) < new Date() &&
+    assignment.status?.value !== "completed" && assignment.status?.value !== "approved";
+
   // Get status badge styling
   const getStatusBadge = (statusValue) => {
     const styles = {
@@ -263,6 +267,11 @@ function AssignmentCard({ assignment }) {
             <span className={`text-[10px] px-1.5 py-0.5 rounded ${statusStyle.bg} ${statusStyle.text}`}>
               {statusStyle.label}
             </span>
+            {isOverdue && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-100 text-red-700 font-medium">
+                Overdue
+              </span>
+            )}
           </div>
         </div>
       </div>

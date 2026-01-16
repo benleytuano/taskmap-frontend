@@ -5,6 +5,7 @@ import {
   Settings2,
   ClipboardList,
   Eye,
+  Shield,
 } from "lucide-react"
 
 import { NavUser } from "@/components/nav-user"
@@ -21,54 +22,76 @@ import {
   SidebarMenuButton,
 } from "@/components/ui/sidebar"
 
-// Navigation items for admin users
-const adminNav = [
+// Navigation items for admin users (static items only)
+const adminNavBase = [
   {
     title: "Dashboard",
     url: "/dashboard",
     icon: LayoutDashboard,
   },
-  {
-    title: "My Watched Tasks",
-    url: "/dashboard/my-watched-tasks",
-    icon: Eye,
-  },
-  {
-    title: "Task",
-    url: "/dashboard/task",
-    icon: ListTodo,
-  },
-  {
-    title: "Settings",
-    url: "/dashboard/settings",
-    icon: Settings2,
-  },
+  // {
+  //   title: "Task",
+  //   url: "/dashboard/task",
+  //   icon: ListTodo,
+  // },
+  // {
+  //   title: "Settings",
+  //   url: "/dashboard/settings",
+  //   icon: Settings2,
+  // },
 ]
 
-// Navigation items for regular users
-const userNav = [
+// Navigation items for regular users (static items only)
+const userNavBase = [
   {
     title: "My Tasks",
     url: "/dashboard/my-tasks",
     icon: ClipboardList,
   },
-  {
-    title: "My Watched Tasks",
-    url: "/dashboard/my-watched-tasks",
-    icon: Eye,
-  },
-  {
-    title: "Settings",
-    url: "/dashboard/settings",
-    icon: Settings2,
-  },
+  // {
+  //   title: "Settings",
+  //   url: "/dashboard/settings",
+  //   icon: Settings2,
+  // },
 ]
+
+// Dynamic nav item for watched tasks
+const watchedTasksNavItem = {
+  title: "My Watched Tasks",
+  url: "/dashboard/my-watched-tasks",
+  icon: Eye,
+}
 
 export function AppSidebar({ user, ...props }) {
   // Determine which nav items to show based on user role
   const isAdmin = user?.role === "admin"
-  const navItems = isAdmin ? adminNav : userNav
-  const homeUrl = isAdmin ? "/dashboard" : "/dashboard/my-tasks"
+  const isSuperAdmin = user?.role === "superadmin"
+  const hasWatchedTasks = (user?.watchedTasksCount || 0) > 0
+
+  // Build nav items based on user role
+  let navItems = isAdmin || isSuperAdmin ? [...adminNavBase] : [...userNavBase]
+
+  // Add "My Watched Tasks" if user has watched tasks
+  if (hasWatchedTasks) {
+    if (isAdmin || isSuperAdmin) {
+      // Insert after Dashboard for admins
+      navItems.splice(1, 0, watchedTasksNavItem)
+    } else {
+      // Insert after My Tasks for regular users
+      navItems.splice(1, 0, watchedTasksNavItem)
+    }
+  }
+
+  // Add superadmin-only items
+  if (isSuperAdmin) {
+    navItems.push({
+      title: "Organizational Designations",
+      url: "/dashboard/organizational-designations",
+      icon: Shield,
+    })
+  }
+
+  const homeUrl = isAdmin || isSuperAdmin ? "/dashboard" : "/dashboard/my-tasks"
 
   return (
     <Sidebar collapsible="icon" {...props}>
